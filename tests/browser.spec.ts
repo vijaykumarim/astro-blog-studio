@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { test, expect } from '@playwright/test';
 import { randomBytes } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -194,6 +195,18 @@ test('editor, publish, access boundaries, images and responsive dashboard', asyn
       })
     ).status(),
   ).toBe(403);
+  for (const route of ['imports/preview', 'imports', 'redirects']) {
+    expect(
+      (
+        await editorPage.request.post('/api/' + route, {
+          headers: { origin: 'http://127.0.0.1:4340' },
+          data: { posts: [] },
+        })
+      ).status(),
+    ).toBe(403);
+  }
+  expect((await editorPage.request.get('/api/redirects/export/json')).status()).toBe(403);
+
   await page.goto('/users');
   await page.locator('[data-toggle-user="' + editor.id + '"]').click();
   await expect(page.locator('#app-dialog')).toBeVisible();
@@ -272,6 +285,46 @@ test('editor, publish, access boundaries, images and responsive dashboard', asyn
   ).toBeLessThan(150);
   await page.goto('/posts/' + postId);
   expect(nativeDialogs).toEqual([]);
+
+  await page.goto('/imports');
+  const xml = `<?xml version="1.0"?><rss xmlns:wp="http://wordpress.org/export/1.2/" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><wp:wxr_version>1.2</wp:wxr_version><item><title>Imported browser story</title><link>https://old.example.com/browser-story/</link><wp:post_type>post</wp:post_type><wp:status>publish</wp:status><wp:post_name>browser-import</wp:post_name><wp:post_date_gmt>2021-01-01 12:00:00</wp:post_date_gmt><wp:postmeta><wp:meta_key>_thumbnail_id</wp:meta_key><wp:meta_value>99</wp:meta_value></wp:postmeta><content:encoded><![CDATA[<h2>Imported heading</h2><p>Original imported article content.</p><img src="https://old.example.com/uploads/import-image.png" alt="Imported illustration" />]]></content:encoded></item><item><wp:post_type>attachment</wp:post_type><wp:post_id>99</wp:post_id><wp:attachment_url>https://old.example.com/uploads/import-image.png</wp:attachment_url></item></channel></rss>`;
+  await page
+    .locator('#import-file')
+    .setInputFiles({ name: 'wordpress.xml', mimeType: 'text/xml', buffer: Buffer.from(xml) });
+  const importMedia = path.join(process.env.STUDIO_BROWSER_DATA!, 'import-media');
+  mkdirSync(importMedia, { recursive: true });
+  writeFileSync(path.join(importMedia, 'import-image.png'), buffer);
+  await page.locator('#import-media').setInputFiles(importMedia);
+  await page.getByRole('button', { name: 'Preview import', exact: true }).click();
+  await expect(page.locator('#import-rows')).toContainText('ready: Imported browser story');
+  await page.screenshot({ path: 'test-results/imports-desktop.png', fullPage: true });
+  await page.getByRole('button', { name: 'Import ready posts as drafts', exact: true }).click();
+  await page.getByRole('button', { name: 'Import drafts', exact: true }).click();
+  await expect(page.locator('#import-rows')).toContainText('imported: Imported browser story');
+  await page.getByRole('button', { name: 'Preview import', exact: true }).click();
+  await expect(page.locator('#import-rows')).toContainText('skip: Imported browser story');
+  const importedPosts = await (await page.request.get('/api/posts')).json();
+  const imported = importedPosts.find((p: any) => p.slug === 'browser-import');
+  expect(imported.image).toMatch(/\.webp$/);
+  const importedDetail = await (await page.request.get('/api/posts/' + imported.id)).json();
+  expect(importedDetail.html).toContain('/media/');
+  expect(importedDetail.html).not.toContain('old.example.com/uploads');
+  await page.goto('/redirects');
+  await expect(page.locator('.migration-row')).toContainText('/browser-story/');
+  await page.getByLabel('Old path').fill('/another-old/');
+  await page.getByLabel('New path').fill('/about/');
+  await page.getByRole('button', { name: 'Save redirect', exact: true }).click();
+  await expect(page.locator('.migration-row').filter({ hasText: '/another-old/' })).toBeVisible();
+  const mapping = await page.request.get('/api/redirects/export/json');
+  expect(await mapping.json()).toEqual([{ from: '/another-old/', to: '/about/', status: 301 }]);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+  ).toBeTruthy();
+  await page.screenshot({ path: 'test-results/redirects-mobile.png', fullPage: true });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/posts/' + postId);
+
   // An unavailable editor module must leave saved content visible and prevent a blank save.
   await page.route('**/src/scripts/editor.ts*', (route) => route.abort());
   await page.reload();
