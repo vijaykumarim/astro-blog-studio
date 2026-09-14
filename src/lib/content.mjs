@@ -90,7 +90,7 @@ export function getPost(id) {
     html: markdownToHtml(splitDocument(revision(id, row.version)).body),
   };
 }
-export function savePost(id, input, actor) {
+export function savePost(id, input, actor, migration = {}) {
   const data = schema.parse(input);
   if (data.image && !existsSync(path.join(dataDir, 'media', data.image)))
     throw new Error('Upload a featured image first.');
@@ -117,6 +117,10 @@ export function savePost(id, input, actor) {
       db.prepare("SELECT id FROM jobs WHERE status IN ('queued','building')").get()
     )
       throw new Error('Wait for publishing to finish before changing the URL.');
+    if (db.prepare('SELECT id FROM redirects WHERE source=?').get('/blog/' + data.slug + '/'))
+      throw new Error(
+        'This post URL is already a redirect source. Remove that redirect before using this slug.',
+      );
     const duplicate = db.prepare('SELECT id FROM posts WHERE slug=?').get(data.slug);
     if (duplicate && duplicate.id !== id) throw new Error('Another article already uses this URL.');
     const body = htmlToMarkdown(data.html),
@@ -126,7 +130,7 @@ export function savePost(id, input, actor) {
     const { html: _, version: __, ...metadata } = data;
     atomicWrite(
       draftPath(postId, version),
-      `---\n${JSON.stringify({ ...metadata, categoryLinks: selected, id: postId, created_at: old?.created_at ?? now, updated_at: now }, null, 2)}\n---\n${body}\n`,
+      `---\n${JSON.stringify({ ...metadata, categoryLinks: selected, id: postId, created_at: old?.created_at ?? migration.createdAt ?? now, updated_at: now }, null, 2)}\n---\n${body}\n`,
     );
     const fields = [
       data.slug,
@@ -148,7 +152,11 @@ export function savePost(id, input, actor) {
     else
       db.prepare(
         'INSERT INTO posts(slug,title,excerpt,category,author,image,alt,seo_title,seo_description,version,updated_at,id,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)',
-      ).run(...fields, postId, now);
+      ).run(...fields, postId, migration.createdAt ?? now);
+    if (migration.sourceUrl)
+      db.prepare(
+        'INSERT INTO imports(source_url,post_id,imported_at) VALUES(?,?,?) ON CONFLICT(source_url) DO UPDATE SET post_id=excluded.post_id,imported_at=excluded.imported_at',
+      ).run(migration.sourceUrl, postId, now);
     audit(actor, 'draft-saved', postId);
     db.prepare('UPDATE posts SET categories_json=? WHERE id=?').run(
       JSON.stringify(data.categories),
