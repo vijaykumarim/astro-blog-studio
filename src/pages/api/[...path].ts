@@ -1,3 +1,10 @@
+import { inspectImport, runImport } from '../../lib/imports.mjs';
+import {
+  listRedirects,
+  saveRedirect,
+  deleteRedirect,
+  exportRedirects,
+} from '../../lib/redirects.mjs';
 import { imageSettings, saveImageSettings, convertImage } from '../../lib/image-settings.mjs';
 import type { APIRoute } from 'astro';
 import { db, audit, postCategories } from '../../lib/db.mjs';
@@ -38,6 +45,30 @@ export const ALL: APIRoute = async ({ request, params, locals }) => {
     method = request.method,
     actor = account.user.id;
   try {
+    const migrationRoute =
+      route === 'imports' ||
+      route.startsWith('imports/') ||
+      route === 'redirects' ||
+      route.startsWith('redirects/');
+    if (migrationRoute && account.role !== 'admin')
+      return Response.json({ error: 'Administrator access required.' }, { status: 403 });
+    if (method === 'GET' && route === 'redirects') return Response.json(listRedirects());
+    if (method === 'GET' && route.startsWith('redirects/export/')) {
+      const format = route.split('/').at(-1)!;
+      const names: Record<string, string> = {
+        json: 'redirects.json',
+        nginx: 'redirects.nginx.conf',
+        apache: 'redirects.apache.conf',
+        netlify: '_redirects',
+      };
+      if (!names[format]) return new Response('Not found', { status: 404 });
+      return new Response(exportRedirects(format), {
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'Content-Disposition': `attachment; filename="${names[format]}"`,
+        },
+      });
+    }
     if (method === 'GET') {
       if (route === 'categories') return Response.json(listCategories());
       if (route === 'settings/images') return Response.json(imageSettings());
@@ -73,8 +104,23 @@ export const ALL: APIRoute = async ({ request, params, locals }) => {
       return Response.json(result);
     }
 
-    const bounded = await limitedRequest(request, 1024 * 1024);
+    const bounded = await limitedRequest(
+      request,
+      route.startsWith('imports') ? 10 * 1024 * 1024 : 1024 * 1024,
+    );
     const body = await bounded.json();
+    if (route === 'imports/preview' && method === 'POST')
+      return Response.json({ rows: inspectImport(body) });
+    if (route === 'imports' && method === 'POST') return Response.json(runImport(body, actor));
+    if (route === 'redirects' && method === 'POST')
+      return Response.json(saveRedirect(null, body, actor));
+    const redirectMatch = route.match(/^redirects\/([a-f0-9-]{36})$/);
+    if (redirectMatch && method === 'PATCH')
+      return Response.json(saveRedirect(redirectMatch[1], body, actor));
+    if (redirectMatch && method === 'DELETE') {
+      deleteRedirect(redirectMatch[1], actor);
+      return Response.json({ ok: true });
+    }
     if (route === 'settings/images' && method === 'PATCH') {
       if (account.role !== 'admin')
         return Response.json({ error: 'Administrator access required.' }, { status: 403 });
