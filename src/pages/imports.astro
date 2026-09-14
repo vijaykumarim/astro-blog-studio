@@ -14,7 +14,12 @@ if (Astro.locals.account?.role !== 'admin') return Astro.redirect('/');
   <section class="panel migration-panel">
     <h2>1. Choose your export</h2>
     <p>
-      Up to 100 MB per file, with no fixed total post count. Posts are processed sequentially in batches of up to 250 (smaller for large articles). Keep this tab open until finished. WordPress pages, attachments, private and trashed posts are
+      For WordPress posts, install
+      <a href="https://wordpress.org/plugins/export-media-with-selected-content/" target="_blank" rel="noopener noreferrer">Export media with selected content</a>
+      and enable its checkbox under Tools → Export. This includes the image references ABS needs to download featured and inline images.
+    </p>
+    <p>
+      Up to 100 MB per file, with no fixed total post count. Posts are processed sequentially in batches of up to 250 (smaller for large articles). Keep this tab open until finished. WordPress pages, private and trashed posts are
       excluded. Existing posts are never overwritten.
     </p>
     <label>
@@ -26,10 +31,9 @@ if (Astro.locals.account?.role !== 'admin') return Astro.redirect('/');
     </a>
     <h2>2. Add images (optional)</h2>
     <p>
-      Select the old site's uploads folder. Images are matched by their original path or unique
-      filename and processed with your image settings. Unmatched images are flagged for review. ABS
-      does not fetch remote URLs.
+      Download images referenced by WordPress XML, including exports from Export media with selected content. Keep the original site online. Images download one at a time and use your image settings. Failed images are listed for review. You can also supply a media folder.
     </p>
+    <label class="migration-check"><input id="import-download" type="checkbox" checked /> Download images from the original website</label>
     <label>
       Media folder
       <input id="import-media" type="file" {...{ webkitdirectory: '' }} multiple />

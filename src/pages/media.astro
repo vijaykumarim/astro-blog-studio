@@ -2,7 +2,7 @@
 import Dashboard from '../layouts/Dashboard.astro';
 import { db } from '../lib/db.mjs';
 import sharp from 'sharp';
-import { stat } from 'node:fs/promises';
+import { stat, readFile } from 'node:fs/promises';
 import { dataDir, inside } from '../lib/config.mjs';
 import path from 'node:path';
 import type { Media } from '../lib/types';
@@ -13,7 +13,7 @@ const details = new Map();
 for (const item of items) {
   try {
     const file=inside(path.join(dataDir,'media'),item.filename);
-    const info=await sharp(file).metadata();
+    const info=await sharp(await readFile(file)).metadata();
     const size=(await stat(file)).size;
     details.set(item.id,{width:info.width,height:info.height,bytes:size,size:size<1024?`${size} B`:size<1048576?`${(size/1024).toFixed(1)} KB`:`${(size/1048576).toFixed(2)} MB`});
   } catch { details.set(item.id,{size:'Unavailable'}); }
@@ -67,6 +67,8 @@ for (const item of items) {
     <div class="actions"><button type="button" class="button primary" data-media-copy>Copy URL</button><a class="button" data-media-view target="_blank" rel="noopener">Open image ↗</a></div>
     <p class="media-url-note">This dashboard URL requires sign-in. Published posts serve their own copy on your website.</p>
     <p data-media-status role="status"></p>
+    <button type="button" class="button" data-media-delete>Delete image</button>
+    <p class="media-url-note">Images used in drafts or published posts cannot be deleted.</p>
   </dialog>
   <script>import '../scripts/media';</script>
 </Dashboard>
