@@ -1,0 +1,259 @@
+---
+import Dashboard from '../../layouts/Dashboard.astro';
+import { getPost } from '../../lib/content.mjs';
+import { listCategories } from '../../lib/categories.mjs';
+import { imageSettings } from '../../lib/image-settings.mjs';
+const uploadSettings = imageSettings();
+const categories = listCategories();
+const isNew = Astro.params.id === 'new';
+const post = isNew ? null : getPost(Astro.params.id);
+if (!isNew && !post) return Astro.redirect('/');
+---
+
+<Dashboard title={isNew ? 'New post' : 'Edit post'}>
+  <form
+    id="post-editor"
+    data-id={post?.id ?? ''}
+    data-version={post?.version ?? 0}
+    data-owner={Astro.locals.account?.user.id}
+  >
+    <div class="page-heading editor-heading">
+      <div>
+        <a class="back" href="/">
+          ← All posts
+        </a>
+        <h1>{isNew ? 'New post' : 'Edit post'}</h1>
+        <p id="save-status" role="status">
+          {post
+            ? 'Saved ' + new Date(post.updated_at).toLocaleString()
+            : 'Your draft stays private until you publish.'}
+        </p>
+      </div>
+      <div class="actions">
+        <button class="button" type="submit" data-editor-ready disabled>
+          Save draft
+        </button>
+        {post && (
+          <a class="button" href={'/preview/' + post.id} target="_blank">
+            Preview ↗
+          </a>
+        )}
+        <button class="button primary" type="button" data-publish data-editor-ready disabled>
+          Publish ↗
+        </button>
+      </div>
+    </div>
+    <div class="editor-grid">
+      <section class="panel writing-panel">
+        <label class="field title-field">
+          Post title
+          <input
+            name="title"
+            required
+            maxlength="160"
+            placeholder="Give your story a title"
+            value={post?.title ?? ''}
+          />
+        </label>
+        <label class="field">
+          Excerpt
+          <textarea
+            name="excerpt"
+            maxlength="320"
+            rows="2"
+            placeholder="A short introduction for your blog cards…"
+          >{post?.excerpt??''}</textarea>
+        </label>
+        <div class="editor-label">Article</div>
+        <div class="editor-toolbar" role="toolbar" aria-label="Article formatting">
+          <button type="button" data-editor-command="bold" aria-label="Bold">
+            <b>B</b>
+          </button>
+          <button type="button" data-editor-command="italic" aria-label="Italic">
+            <i>I</i>
+          </button>
+          <button type="button" data-editor-command="h2">
+            H2
+          </button>
+          <button type="button" data-editor-command="h3">
+            H3
+          </button>
+          <button type="button" data-editor-command="bullet" aria-label="Bullet list">
+            • List
+          </button>
+          <button type="button" data-editor-command="ordered" aria-label="Numbered list">
+            1. List
+          </button>
+          <button type="button" data-editor-command="quote">
+            Quote
+          </button>
+          <button type="button" data-editor-command="link">
+            Link
+          </button>
+          <button type="button" data-editor-command="image">
+            Image
+          </button>
+          <button type="button" data-editor-command="undo" aria-label="Undo">
+            ↶
+          </button>
+          <button type="button" data-editor-command="redo" aria-label="Redo">
+            ↷
+          </button>
+        </div>
+        <p id="editor-load-status" role="status">
+          Loading the editor…
+        </p>
+        <div
+          id="rich-editor"
+          class="editor-fallback"
+          set:html={post?.html || '<p>Your article will appear here.</p>'}
+        />
+        <template id="initial-content" set:html={post?.html ?? '<p></p>'} />
+        <noscript>
+          Enable JavaScript to edit this article. Your saved content is shown above.
+        </noscript>
+        <p class="editor-footnote">Use headings to make longer articles easy to scan.</p>
+      </section>
+      <aside class="editor-options">
+        <section class="panel settings-panel">
+          <h2>Post settings</h2>
+          <label class="field">
+            URL slug
+            <input
+              name="slug"
+              pattern="[a-z0-9]+(-[a-z0-9]+)*"
+              maxlength="100"
+              required
+              value={post?.slug ?? ''}
+            />
+            <small>
+              /blog/<span data-slug-preview>{post?.slug ?? 'your-post'}</span>/
+            </small>
+          </label>
+          <fieldset class="category-choices">
+            <legend>Categories</legend>
+            {categories.map((category) => (
+              <label>
+                <input
+                  type="checkbox"
+                  name="categories"
+                  value={category.name}
+                  checked={
+                    post?.categories?.includes(category.name) ??
+                    (!post && category.name === 'Guides')
+                  }
+                />
+                {category.name}
+              </label>
+            ))}
+          </fieldset>
+          <a class="back" href="/categories">
+            Manage categories ↗
+          </a>
+          <label class="field">
+            Author
+            <input
+              name="author"
+              required
+              maxlength="100"
+              value={post?.author ?? Astro.locals.account?.user.name}
+            />
+          </label>
+        </section>
+        <section class="panel settings-panel">
+          <h2>Featured image</h2>
+          <div class="featured-preview">
+            {post?.image ? (
+              <img
+                id="featured-preview"
+                src={'/media/' + post.image}
+                alt="Featured image preview"
+              />
+            ) : (
+              <img id="featured-preview" hidden alt="Featured image preview" />
+            )}
+            <span data-image-placeholder hidden={!!post?.image}>
+              ▧<small>A strong image tells a story.</small>
+            </span>
+          </div>
+          <label class="button upload-button">
+            Choose image
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/avif"
+              id="featured-upload"
+              class="sr-only"
+            />
+          </label>
+          <small>
+            JPG, PNG, WebP or AVIF · up to {uploadSettings.maxUploadMB} MB · saves as{' '}
+            {uploadSettings.format.toUpperCase()}
+          </small>
+          <input type="hidden" name="image" value={post?.image ?? ''} />
+          <label class="field">
+            Image description
+            <input
+              name="alt"
+              maxlength="240"
+              placeholder="Describe what the image shows"
+              value={post?.alt ?? ''}
+            />
+          </label>
+        </section>
+        <details class="panel settings-panel">
+          <summary>Search appearance</summary>
+          <label class="field">
+            SEO title
+            <input name="seo_title" maxlength="160" value={post?.seo_title ?? ''} />
+          </label>
+          <label class="field">
+            SEO description
+            <textarea
+              name="seo_description"
+              maxlength="320"
+              rows="3"
+            >{post?.seo_description??''}</textarea>
+          </label>
+        </details>
+        {post && (
+          <section class="panel settings-panel">
+            <h2>Manage post</h2>
+            {post.published_version && (
+              <button class="button" type="button" data-unpublish>
+                Unpublish
+              </button>
+            )}
+            <button class="text-button danger" type="button" data-delete-post>
+              Delete draft
+            </button>
+            <small>Published posts must be unpublished before deletion.</small>
+          </section>
+        )}
+      </aside>
+    </div>
+  </form>
+  <dialog id="insert-dialog">
+    <form method="dialog">
+      <h2 data-insert-title>Add a link</h2>
+      <label class="field">
+        URL
+        <input id="insert-url" type="url" placeholder="https://…" />
+      </label>
+      <div class="actions">
+        <button class="button" value="cancel">
+          Cancel
+        </button>
+        <button class="button primary" value="insert">
+          Insert
+        </button>
+      </div>
+    </form>
+  </dialog>
+  <input
+    type="file"
+    id="inline-upload"
+    hidden
+    accept="image/jpeg,image/png,image/webp,image/avif"
+  />
+  <script src="../../scripts/editor-loader.ts"></script>
+</Dashboard>
