@@ -1,0 +1,8 @@
+{
+  "name": "studio-example-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "astro build"
+  }
+}
