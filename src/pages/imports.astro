@@ -1,0 +1,62 @@
+---
+import Dashboard from '../layouts/Dashboard.astro';
+if (Astro.locals.account?.role !== 'admin') return Astro.redirect('/');
+---
+
+<Dashboard title="Import posts" active="imports">
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">MOVE YOUR BLOG</p>
+      <h1>Import posts</h1>
+      <p>Bring WordPress XML or JSON posts into ABS as drafts.</p>
+    </div>
+  </div>
+  <section class="panel migration-panel">
+    <h2>1. Choose your export</h2>
+    <p>
+      Up to 200 posts and 8 MB per file. WordPress pages, attachments, private and trashed posts are
+      excluded. Existing posts are never overwritten.
+    </p>
+    <label>
+      Export file
+      <input id="import-file" type="file" accept=".xml,.json" />
+    </label>
+    <a href="/import-example.json" download>
+      Download an example JSON file
+    </a>
+    <h2>2. Add images (optional)</h2>
+    <p>
+      Select the old site's uploads folder. Images are matched by their original path or unique
+      filename and processed with your image settings. Unmatched images are flagged for review. ABS
+      does not fetch remote URLs.
+    </p>
+    <label>
+      Media folder
+      <input id="import-media" type="file" {...{ webkitdirectory: '' }} multiple />
+    </label>
+    <label class="migration-check">
+      <input id="import-redirects" type="checkbox" checked /> Create 301 redirect mappings from old
+      post URLs
+    </label>
+    <button class="button primary" id="import-preview">
+      Preview import
+    </button>
+    <p id="import-progress" role="status"></p>
+    <p id="migration-error" role="alert" hidden></p>
+  </section>
+  <section class="panel migration-panel" id="import-review" hidden>
+    <h2>3. Review and import</h2>
+    <p>
+      Only ready rows are imported. Missing images and unsupported formatting need review before you
+      publish. Imported redirect mappings are withheld from server exports until their posts are
+      published.
+    </p>
+    <div id="import-rows" class="migration-rows"></div>
+    <button class="button primary" id="import-run">
+      Import ready posts as drafts
+    </button>
+  </section>
+  <script>
+    import '../scripts/imports';
+  </script>
+</Dashboard>

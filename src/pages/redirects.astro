@@ -1,0 +1,105 @@
+---
+import Dashboard from '../layouts/Dashboard.astro';
+import { listRedirects } from '../lib/redirects.mjs';
+if (Astro.locals.account?.role !== 'admin') return Astro.redirect('/');
+const rows = listRedirects();
+---
+
+<Dashboard title="Redirects" active="redirects">
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">KEEP OLD LINKS WORKING</p>
+      <h1>Redirects</h1>
+      <p>Map old paths to their new pages.</p>
+    </div>
+  </div>
+  <section class="panel migration-panel">
+    <h2 id="redirect-editor-title">Add a redirect</h2>
+    <form id="redirect-form" class="migration-form">
+      <input type="hidden" name="id" />
+      <label>
+        Old path
+        <input name="from" placeholder="/old-post/" required />
+      </label>
+      <label>
+        New path
+        <input name="to" placeholder="/blog/new-post/" required />
+      </label>
+      <label>
+        Status
+        <select name="status">
+          <option value="301">301 — Permanent</option>
+          <option value="302">302 — Temporary</option>
+          <option value="307">307 — Temporary, preserve method</option>
+          <option value="308">308 — Permanent, preserve method</option>
+        </select>
+      </label>
+      <label class="migration-check">
+        <input name="enabled" type="checkbox" checked /> Include in export
+      </label>
+      <button class="button primary" type="submit">
+        Save redirect
+      </button>
+      <button class="button" type="reset">
+        Cancel edit
+      </button>
+    </form>
+    <p id="migration-error" role="alert" hidden></p>
+  </section>
+  <section class="panel migration-panel">
+    <h2>Saved mappings</h2>
+    <p>
+      Use exact paths without query strings or encoded characters. Redirect chains, loops and
+      external destinations are rejected.
+    </p>
+    {!rows.length && <p>No redirects yet. Add one above or create them while importing posts.</p>}
+    {rows.map((row) => (
+      <div class="migration-row">
+        <div>
+          <strong>{row.source}</strong>
+          <p>
+            → {row.destination} · {row.status} ·{' '}
+            {!row.enabled
+              ? 'Disabled'
+              : row.ready
+                ? 'Ready to export'
+                : 'Waiting for a published destination'}
+          </p>
+        </div>
+        <div class="actions">
+          <button class="button" data-redirect-edit={JSON.stringify(row)}>
+            Edit
+          </button>
+          <button class="text-button danger" data-redirect-delete={row.id} data-source={row.source}>
+            Delete
+          </button>
+        </div>
+      </div>
+    ))}
+  </section>
+  <section class="panel migration-panel">
+    <h2>Export for your server</h2>
+    <p>
+      These downloads contain enabled rules only. Destinations under /blog/ must match a published
+      ABS post. Apply the generated rules on the main website server and test them there; saving or
+      downloading does not activate them.
+    </p>
+    <div class="actions migration-exports">
+      <a class="button" href="/api/redirects/export/json">
+        JSON mapping
+      </a>
+      <a class="button" href="/api/redirects/export/nginx">
+        Nginx / CloudPanel
+      </a>
+      <a class="button" href="/api/redirects/export/apache">
+        Apache
+      </a>
+      <a class="button" href="/api/redirects/export/netlify">
+        Netlify
+      </a>
+    </div>
+  </section>
+  <script>
+    import '../scripts/redirects';
+  </script>
+</Dashboard>
