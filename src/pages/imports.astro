@@ -14,7 +14,7 @@ if (Astro.locals.account?.role !== 'admin') return Astro.redirect('/');
   <section class="panel migration-panel">
     <h2>1. Choose your export</h2>
     <p>
-      Up to 200 posts and 8 MB per file. WordPress pages, attachments, private and trashed posts are
+      Up to 100 MB per file, with no fixed total post count. Posts are processed sequentially in batches of up to 250 (smaller for large articles). Keep this tab open until finished. WordPress pages, attachments, private and trashed posts are
       excluded. Existing posts are never overwritten.
     </p>
     <label>
