@@ -48,6 +48,16 @@ const account = Astro.locals.account;
           <span>↗</span> Publishing
         </a>
         {account?.role === 'admin' && (
+          <>
+            <a href="/imports" aria-current={active === 'imports' ? 'page' : undefined}>
+              <span>↓</span> Import posts
+            </a>
+            <a href="/redirects" aria-current={active === 'redirects' ? 'page' : undefined}>
+              <span>⇢</span> Redirects
+            </a>
+          </>
+        )}
+        {account?.role === 'admin' && (
           <a href="/settings" aria-current={active === 'settings' ? 'page' : undefined}>
             <span>⚙</span> Settings
           </a>
