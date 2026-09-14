@@ -6,7 +6,7 @@ Administrators have **Import posts** and **Redirects** in the sidebar. Editors c
 
 1. In WordPress, export content as WXR XML. An **All content** export includes attachment records needed to identify featured images; ABS imports only post items with publish, draft, pending or future status. Pages, attachments, private and trashed posts are not imported as articles.
 2. Keep a backup of the original export and download the old uploads folder separately. WordPress XML refers to images; it does not contain their bytes.
-3. In ABS, select the XML file and optionally the uploads folder. Use batches of up to 200 posts and an 8 MB export. For larger sites, export by date range or split the JSON input into batches.
+3. In ABS, select the XML file and optionally the uploads folder. Select exports up to 100 MB without a fixed total post-count cap. ABS sends sequential batches of at most 250 posts, reducing the batch size for large articles to stay below the request-byte limit. Keep the tab open. Progress shows each batch; if a request fails, retry the export and existing imports will be skipped. Larger files must be split to keep browser XML/JSON parsing manageable.
 4. Preview. Image files are matched by relative path or unique original filename, uploaded through the existing image converter, and linked into the draft. Ambiguous or missing files are reported. No remote URLs are fetched. Media uploads happen during preview and remain in the media library even if you cancel the import.
 5. Review warnings and import ready rows as drafts. The app confirmation is required before creating posts. Review the drafts in the editor, add missing images and image descriptions, and publish when ready.
 
