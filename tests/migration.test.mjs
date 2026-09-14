@@ -45,7 +45,7 @@ test('imports create dated drafts, sanitize content, preserve source identity an
   assert.equal(inspectImport({ posts: [post] })[0].status, 'ready');
 });
 test('preview rejects bad records and slug collisions without overwriting', () => {
-  assert.throws(() => inspectImport({ posts: [] }), /1–200/);
+  assert.throws(() => inspectImport({ posts: [] }), /1–250/);
   assert.equal(
     inspectImport({ posts: [{ ...post, sourceUrl: 'file:///etc/passwd' }] })[0].status,
     'error',
@@ -78,4 +78,18 @@ test('redirect validation prevents configuration injection, external URLs, dupli
   assert.throws(() => saveRedirect(null, { from: '/external/', to: 'https://evil.test/' }, 'test'));
   saveRedirect(a.id, { from: '/legacy/', to: '/new/', enabled: false }, 'test');
   assert.doesNotMatch(exportRedirects('nginx'), /legacy/);
+});
+
+
+test('large exports split into sequential bounded batches without dropping rows', async()=>{
+ const {importBatches}=await import('../src/lib/import-batches.mjs');
+ const posts=Array.from({length:751},(_,id)=>({id,html:'text'}));
+ const batches=importBatches(posts);
+ assert.deepEqual(batches.map(b=>b.posts.length),[250,250,250,1]);
+ assert.deepEqual(batches.map(b=>b.offset),[0,250,500,750]);
+ assert.deepEqual(batches.flatMap(b=>b.posts),posts);
+ const large=importBatches(Array.from({length:100},()=>({html:'a'.repeat(200000)})));
+ assert.ok(large.every(b=>b.posts.length<250));
+ assert.equal(large.flatMap(b=>b.posts).length,100);
+ assert.throws(()=>importBatches([{html:'x'.repeat(9*1024*1024)}]),/request limit/);
 });

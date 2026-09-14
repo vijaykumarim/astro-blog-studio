@@ -325,6 +325,23 @@ test('editor, publish, access boundaries, images and responsive dashboard', asyn
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/posts/' + postId);
 
+  const favicon = await request.get('/favicon.svg');
+  expect(favicon.status()).toBe(200);
+  expect(favicon.headers()['content-type']).toContain('image/svg+xml');
+  expect(await favicon.text()).toContain('<svg');
+  const batchSizes:number[]=[];
+  page.on('request',req=>{if(new URL(req.url()).pathname==='/api/imports'&&req.method()==='POST')batchSizes.push(req.postDataJSON().posts.length);});
+  await page.goto('/imports');
+  const manyPosts=Array.from({length:251},(_,i)=>({sourceUrl:`https://old.example.com/batch-${i}/`,title:`Batch story ${i}`,slug:`batch-story-${i}`,html:'<p>Imported batch article for review.</p>'}));
+  await page.locator('#import-file').setInputFiles({name:'large-export.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({posts:manyPosts}))});
+  await page.getByRole('button',{name:'Preview import',exact:true}).click();
+  await expect(page.locator('#import-progress')).toContainText('251 ready');
+  await page.getByRole('button',{name:'Import ready posts as drafts',exact:true}).click();
+  await page.getByRole('button',{name:'Import drafts',exact:true}).click();
+  await expect(page.locator('#import-progress')).toContainText('251 drafts imported');
+  expect(batchSizes).toEqual([250,1]);
+  await page.goto('/posts/'+postId);
+
   // An unavailable editor module must leave saved content visible and prevent a blank save.
   await page.route('**/src/scripts/editor.ts*', (route) => route.abort());
   await page.reload();
