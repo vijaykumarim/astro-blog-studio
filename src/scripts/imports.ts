@@ -1,3 +1,4 @@
+import { importBatches } from '../lib/import-batches.mjs';
 import { api } from './dashboard';
 import { confirmAction } from './dialogs';
 type ImportPost = {
@@ -23,6 +24,21 @@ const run = document.querySelector<HTMLButtonElement>('#import-run')!;
 const progress = document.querySelector<HTMLElement>('#import-progress')!;
 const error = document.querySelector<HTMLElement>('#migration-error')!;
 let posts: ImportPost[] = [];
+async function sendBatches(route:string){
+  const batches=importBatches(posts), rows:any[]=[];
+  const createRedirects=document.querySelector<HTMLInputElement>('#import-redirects')!.checked;
+  for(const [index,batch] of batches.entries()){
+    progress.textContent=`${route==='imports'?'Importing':'Checking'} batch ${index+1} of ${batches.length} (${batch.posts.length} posts)… Keep this tab open.`;
+    try {
+      const result=await api(route,'POST',{posts:batch.posts,createRedirects});
+      rows.push(...(result.rows||result.results).map((row:any)=>({...row,index:row.index+batch.offset})));
+      if(route==='imports')report(rows);
+    } catch(e) {
+      throw Error(`${(e as Error).message} Stopped at batch ${index+1} of ${batches.length}. ${rows.filter(r=>r.status==='imported').length} drafts imported in this run. Retry the export; already imported posts are skipped.`);
+    }
+  }
+  return rows;
+}
 function text(el: Element, local: string) {
   return el.getElementsByTagNameNS('*', local)[0]?.textContent?.trim() || '';
 }
@@ -128,16 +144,16 @@ preview.addEventListener('click', async () => {
   try {
     const file = fileInput.files?.[0];
     if (!file) throw Error('Choose an XML or JSON export.');
-    if (file.size > 8 * 1024 * 1024) throw Error('Split exports larger than 8 MB.');
+    if (file.size > 100 * 1024 * 1024) throw Error('Choose an export up to 100 MB. Split larger files before importing.');
     posts = parseExport(await file.text());
-    if (!Array.isArray(posts) || !posts.length || posts.length > 200)
-      throw Error('Choose 1–200 posts per batch.');
+    if (!Array.isArray(posts) || !posts.length)
+      throw Error('The export must contain at least one post.');
     // Validate the complete batch before uploading any local media.
     posts = posts.map((p) => ({
       ...p,
       categories: p.categories?.length ? p.categories : ['Imported'],
     }));
-    const initial = await api('imports/preview', 'POST', { posts });
+    const initial = {rows:await sendBatches('imports/preview')};
     const ready = new Set(
       initial.rows.filter((r: any) => r.status === 'ready').map((r: any) => r.index),
     );
@@ -194,7 +210,7 @@ preview.addEventListener('click', async () => {
       }
       p.html = doc.body.innerHTML;
     }
-    const result = await api('imports/preview', 'POST', { posts });
+    const result = {rows:await sendBatches('imports/preview')};
     report(result.rows);
     run.disabled = !result.rows.some((r: any) => r.status === 'ready');
     document.querySelector<HTMLElement>('#import-review')!.hidden = false;
@@ -224,10 +240,7 @@ run.addEventListener('click', async () => {
   mediaInput.disabled = true;
   error.hidden = true;
   try {
-    const result = await api('imports', 'POST', {
-      posts,
-      createRedirects: document.querySelector<HTMLInputElement>('#import-redirects')!.checked,
-    });
+    const result = {results:await sendBatches('imports')};
     report(result.results);
     progress.textContent = `${result.results.filter((r: any) => r.status === 'imported').length} drafts imported. Review them before publishing.`;
   } catch (e) {
