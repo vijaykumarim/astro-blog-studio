@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { db, audit, transaction } from './db.mjs';
+const blogSlug = (value) => String(value).match(/^\/blog\/([a-z0-9-]+)\/$/)?.[1] || ''; 
 export function redirectPath(value) {
   if (
     typeof value !== 'string' ||
@@ -39,9 +40,9 @@ export function listRedirects() {
         !row.destination.startsWith('/blog/') ||
         !!db
           .prepare(
-            "SELECT id FROM posts WHERE ? = '/blog/' || slug || '/' AND published_version IS NOT NULL",
+            "SELECT id FROM posts WHERE slug=? AND published_version IS NOT NULL",
           )
-          .get(row.destination),
+          .get(blogSlug(row.destination)),
     }));
 }
 export function saveRedirect(id, input, actor) {
@@ -56,12 +57,11 @@ export function saveRedirect(id, input, actor) {
       throw new Error('Redirect not found.');
     if (db.prepare('SELECT id FROM redirects WHERE source=? AND id!=?').get(source, id || ''))
       throw new Error('This old URL already has a redirect.');
-    const others = listRedirects().filter((r) => r.id !== id);
-    if (others.some((r) => r.source === destination || r.destination === source))
+    if (db.prepare('SELECT id FROM redirects WHERE id!=? AND (source=? OR destination=?) LIMIT 1').get(id || '',destination,source))
       throw new Error(
         'Redirect chains and loops are not allowed. Point old URLs directly to the final page.',
       );
-    if (db.prepare("SELECT id FROM posts WHERE ? = '/blog/' || slug || '/'").get(source))
+    if (db.prepare("SELECT id FROM posts WHERE slug=?").get(blogSlug(source)))
       throw new Error('The old URL belongs to an existing ABS post.');
     const key = id || randomUUID();
     db.prepare(

@@ -25,8 +25,8 @@ const postSchema = z.object({
   warnings: z.array(z.string().max(300)).max(100).default([]),
 });
 export function inspectImport(input) {
-  if (!Array.isArray(input.posts) || !input.posts.length || input.posts.length > 200)
-    throw new Error('Choose an export with 1–200 posts. Split larger exports into batches.');
+  if (!Array.isArray(input.posts) || !input.posts.length || input.posts.length > 250)
+    throw new Error('Choose an export with 1–250 posts per request.');
   const seen = new Set(),
     slugs = new Set();
   return input.posts.map((raw, index) => {
