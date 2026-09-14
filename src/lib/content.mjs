@@ -167,8 +167,8 @@ export function savePost(id, input, actor, migration = {}) {
 }
 export function deletePosts(ids, actor) {
   return transaction(() => {
-    if (!Array.isArray(ids) || !ids.length || ids.length > 100)
-      throw new Error('Select 1–100 posts.');
+    if (!Array.isArray(ids) || !ids.length)
+      throw new Error('Select at least one post.');
     if (db.prepare("SELECT id FROM jobs WHERE status IN ('queued','building')").get())
       throw new Error('Wait for publishing to finish.');
     for (const id of ids) {

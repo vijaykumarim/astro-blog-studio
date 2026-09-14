@@ -15,6 +15,23 @@ import { db, audit, transaction } from './db.mjs';
 import { dataDir, root, studio, inside } from './config.mjs';
 import { revision, splitDocument, atomicWrite } from './content.mjs';
 let worker;
+export class PublishValidation extends Error {
+  constructor(issues) {
+    super(`${issues.length} selected posts need attention before publishing.`);
+    this.issues = issues;
+  }
+}
+export function publishingIssues(ids) {
+  return ids.flatMap(id => {
+    const post = db.prepare('SELECT * FROM posts WHERE id=?').get(id);
+    if (!post) return [{id,title:'Post not found',fields:['This post no longer exists']}];
+    const doc = splitDocument(revision(id, post.version));
+    const fields = [!post.excerpt.trim() && 'Excerpt', !post.image && 'Featured image',
+      !post.alt.trim() && 'Image description', doc.body.trim().length < 20 && 'Article text',
+      post.image && !existsSync(path.join(dataDir,'media',post.image)) && 'Missing image file'].filter(Boolean);
+    return fields.length ? [{id,title:post.title,fields}] : [];
+  });
+}
 export function recoverJobs() {
   db.prepare(
     "UPDATE jobs SET status='failed',finished_at=?,error='Publishing was interrupted. The previous active release was kept. Retry publishing.' WHERE status IN ('queued','building')",
@@ -27,18 +44,15 @@ export function queuePublish(id, action, actor) {
     if (db.prepare("SELECT id FROM jobs WHERE status IN ('queued','building')").get())
       throw new Error('A publish is already running. Please wait.');
     const ids = Array.isArray(id) ? [...new Set(id)] : id ? [id] : [];
-    if (action !== 'rebuild' && (!ids.length || ids.length > 100))
-      throw new Error('Select 1–100 posts.');
+    if (action !== 'rebuild' && (!ids.length))
+      throw new Error('Select at least one post.');
+    if (action === 'publish') {
+      const issues = publishingIssues(ids);
+      if (issues.length) throw new PublishValidation(issues);
+    }
     const items = ids.map((id) => {
       const post = db.prepare('SELECT * FROM posts WHERE id=?').get(id);
       if (!post) throw new Error('Post not found.');
-      if (action === 'publish') {
-        const doc = splitDocument(revision(id, post.version));
-        if (!post.excerpt || !post.image || !post.alt || doc.body.trim().length < 20)
-          throw new Error(
-            'Complete the text, excerpt, image and image description for every selected post.',
-          );
-      }
       return { id, version: post.version };
     });
     const job = {

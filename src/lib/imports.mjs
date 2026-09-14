@@ -4,6 +4,7 @@ import { db } from './db.mjs';
 import { savePost } from './content.mjs';
 import { createCategory } from './categories.mjs';
 import { saveRedirect, redirectPath } from './redirects.mjs';
+import { importExcerpt } from './import-metadata.mjs';
 const postSchema = z.object({
   sourceUrl: z.string().url().max(1500),
   title: z.string().trim().min(1).max(160),
@@ -40,6 +41,7 @@ export function inspectImport(input) {
       };
     const post = parsed.data,
       url = new URL(post.sourceUrl);
+    if (!post.excerpt.trim()) post.excerpt = importExcerpt(post.html);
     if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password)
       return {
         index,
