@@ -1,0 +1,98 @@
+---
+import Dashboard from '../layouts/Dashboard.astro';
+import { imageSettings } from '../lib/image-settings.mjs';
+if (Astro.locals.account?.role !== 'admin') return Astro.redirect('/');
+const s = imageSettings();
+---
+
+<Dashboard title="Settings" active="settings">
+  <div class="page-heading">
+    <div>
+      <h1>Image settings</h1>
+      <p>Automatically resize and convert new uploads.</p>
+    </div>
+  </div>
+  <form class="panel settings-form" id="image-settings">
+    <div class="settings-fields">
+      <label class="field">
+        Maximum width (px)
+        <input type="number" name="maxWidth" min="320" max="4000" required value={s.maxWidth} />
+      </label>
+      <label class="field">
+        Maximum height (px)
+        <input type="number" name="maxHeight" min="320" max="4000" required value={s.maxHeight} />
+      </label>
+      <label class="field">
+        Maximum upload size (MB)
+        <input type="number" name="maxUploadMB" min="1" max="20" required value={s.maxUploadMB} />
+      </label>
+      <label class="field">
+        Output format
+        <select name="format">
+          {['webp', 'avif', 'jpeg', 'png'].map((format) => (
+            <option value={format} selected={s.format === format}>
+              {format.toUpperCase()}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label class="field">
+        Image ratio
+        <select name="ratio">
+          {['original', '1:1', '4:3', '3:2', '16:9'].map((ratio) => (
+            <option selected={s.ratio === ratio} value={ratio}>
+              {ratio === 'original' ? 'Keep original ratio' : ratio}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label class="field">
+        Fit a fixed ratio
+        <select name="fit">
+          <option value="cover" selected={s.fit === 'cover'}>
+            Crop to fill
+          </option>
+          <option value="contain" selected={s.fit === 'contain'}>
+            Keep whole image with padding
+          </option>
+        </select>
+      </label>
+    </div>
+    <label class="field">
+      Quality: <output id="quality-value">{s.quality}</output>
+      <input type="range" name="quality" min="30" max="100" value={s.quality} />
+    </label>
+    <p class="helper">
+      Lower quality makes smaller files. Fixed ratios may crop or add padding. PNG uses a reduced
+      colour palette. Changes affect new uploads only.
+    </p>
+    <button class="button primary">Save settings</button>
+    <p id="settings-status" role="status"></p>
+  </form>
+  <script>
+    import { api } from '../scripts/dashboard';
+    const form = document.querySelector<HTMLFormElement>('#image-settings')!;
+    const quality = form.elements.namedItem('quality') as HTMLInputElement;
+    quality.addEventListener(
+      'input',
+      () => (document.querySelector('output')!.textContent = quality.value),
+    );
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const body = Object.fromEntries(new FormData(form));
+      for (const key of ['maxWidth', 'maxHeight', 'maxUploadMB', 'quality'])
+        (body as any)[key] = Number(body[key]);
+      const button = form.querySelector('button')!;
+      button.disabled = true;
+      try {
+        await api('settings/images', 'PATCH', body);
+        document.querySelector('#settings-status')!.textContent =
+          'Settings saved. New uploads will use these options.';
+      } catch (error) {
+        document.querySelector('#settings-status')!.textContent = (error as Error).message;
+      } finally {
+        button.disabled = false;
+      }
+    });
+  </script>
+</Dashboard>

@@ -1,0 +1,107 @@
+---
+import Dashboard from '../layouts/Dashboard.astro';
+import { listCategories } from '../lib/categories.mjs';
+const categories = listCategories();
+const admin = Astro.locals.account?.role === 'admin';
+const updated = Number(Astro.url.searchParams.get('updated') || 0);
+---
+
+<Dashboard title="Categories" active="categories">
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">ORGANISE YOUR BLOG</p>
+      <h1>Categories</h1>
+      <p>Group your posts so readers can find related topics.</p>
+    </div>
+    {admin && (
+      <button class="button primary" data-category-add>
+        Add category
+      </button>
+    )}
+  </div>
+  {updated > 0 && (
+    <p class="panel category-notice" role="status">
+      {updated} {updated === 1 ? 'post draft was' : 'post drafts were'} updated. Publish those posts
+      when you want the changes on your website.
+    </p>
+  )}
+  <section class="panel category-list" aria-label="Blog categories">
+    {categories.map((category) => (
+      <div class="category-row">
+        <div>
+          <h2>{category.name}</h2>
+          <p>
+            {category.posts} {category.posts === 1 ? 'post' : 'posts'}
+          </p>
+        </div>
+        {admin && (
+          <div class="actions">
+            <button class="button" data-category-edit={category.id} data-name={category.name}>
+              Rename<span class="sr-only"> {category.name}</span>
+            </button>
+            <button
+              class="text-button danger"
+              data-category-delete={category.id}
+              data-name={category.name}
+              data-count={category.posts}
+            >
+              Delete<span class="sr-only"> {category.name}</span>
+            </button>
+          </div>
+        )}
+      </div>
+    ))}
+  </section>
+  <p class="helper">
+    {admin
+      ? 'Renaming a category updates its post drafts. Published articles keep their current category until you publish them again.'
+      : 'Administrators can create, rename and delete categories. You can choose a category when editing a post.'}
+  </p>
+  {admin && (
+    <>
+      <dialog id="category-editor" aria-labelledby="category-editor-title">
+        <form id="category-form">
+          <h2 id="category-editor-title">Add category</h2>
+          <label class="field">
+            Category name
+            <input name="name" required maxlength="60" autocomplete="off" />
+          </label>
+          <p class="danger" data-category-error role="alert" hidden></p>
+          <div class="actions">
+            <button class="button" type="button" data-category-close>
+              Cancel
+            </button>
+            <button class="button primary" type="submit">
+              Save category
+            </button>
+          </div>
+        </form>
+      </dialog>
+      <dialog id="category-delete-dialog" aria-labelledby="category-delete-title">
+        <form id="category-delete-form">
+          <h2 id="category-delete-title">Delete category</h2>
+          <p data-delete-description></p>
+          <label class="field" data-replacement-field>
+            Move posts to
+            <select name="replacementId">
+              <option value="">Choose a category</option>
+              {categories.map((category) => (
+                <option value={category.id}>{category.name}</option>
+              ))}
+            </select>
+          </label>
+          <p class="danger" data-category-error role="alert" hidden></p>
+          <div class="actions">
+            <button class="button" type="button" data-category-close>
+              Cancel
+            </button>
+            <button class="button primary" type="submit">
+              Delete category
+            </button>
+          </div>
+        </form>
+      </dialog>
+    </>
+  )}
+  <script src="../scripts/categories.ts"></script>
+</Dashboard>

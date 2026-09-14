@@ -1,0 +1,46 @@
+---
+import Dashboard from '../layouts/Dashboard.astro';
+import { db } from '../lib/db.mjs';
+import type { Media } from '../lib/types';
+const items = db
+  .prepare('SELECT * FROM media ORDER BY created_at DESC')
+  .all() as unknown as Media[];
+---
+
+<Dashboard title="Media library" active="media">
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">A PICTURE TELLS A STORY</p>
+      <h1>Your image library.</h1>
+      <p>Images uploaded in the editor are available here.</p>
+    </div>
+  </div>
+  {items.length ? (
+    <div class="media-grid">
+      {items.map((item) => (
+        <figure class="panel">
+          <img
+            src={'/media/' + item.filename}
+            alt={item.alt || 'Uploaded article image'}
+            loading="lazy"
+            width="300"
+            height="200"
+          />
+          <figcaption>
+            {new Date(item.created_at).toLocaleDateString()}
+            <small>{item.filename.split('.').at(-1)?.toUpperCase()}</small>
+          </figcaption>
+        </figure>
+      ))}
+    </div>
+  ) : (
+    <div class="panel empty">
+      <div class="empty-art">▧</div>
+      <h2>Make room for good imagery.</h2>
+      <p>Upload a featured image or insert an image in your next post.</p>
+      <a class="button" href="/posts/new">
+        Create a post ↗
+      </a>
+    </div>
+  )}
+</Dashboard>

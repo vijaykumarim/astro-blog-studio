@@ -1,0 +1,83 @@
+---
+import Dashboard from '../layouts/Dashboard.astro';
+import { db } from '../lib/db.mjs';
+import { studio } from '../lib/config.mjs';
+import type { Job } from '../lib/types';
+const jobs = db
+  .prepare(
+    'SELECT j.*,p.title FROM jobs j LEFT JOIN posts p ON p.id=j.post_id ORDER BY j.created_at DESC LIMIT 30',
+  )
+  .all() as unknown as Job[];
+---
+
+<Dashboard title="Publishing" active="publishing">
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">FROM DRAFT TO LIVE</p>
+      <h1>Every release, in view.</h1>
+      <p>Build first. Check it. Then make it live.</p>
+    </div>
+    <button class="button" data-rebuild>
+      Rebuild published posts ↗
+    </button>
+  </div>
+  <section class="panel">
+    {jobs.length ? (
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Article / action</th>
+              <th>Status</th>
+              <th>Started</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            {jobs.map((job) => (
+              <tr>
+                <td>
+                  <strong>{job.title ?? 'Published website'}</strong>
+                  <small>{job.action}</small>
+                </td>
+                <td>
+                  <span
+                    class:list={[
+                      'badge',
+                      job.status === 'live'
+                        ? 'published'
+                        : job.status === 'failed'
+                          ? 'failed'
+                          : 'draft',
+                    ]}
+                  >
+                    {job.status}
+                  </span>
+                </td>
+                <td>{new Date(job.created_at).toLocaleString()}</td>
+                <td>
+                  {job.error ??
+                    (job.status === 'live' ? 'Local release activated' : 'Building website…')}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    ) : (
+      <div class="empty">
+        <div class="empty-art">↗</div>
+        <h2>Ready when you are.</h2>
+        <p>Your publishing history will appear here.</p>
+      </div>
+    )}
+  </section>
+  <p class="helper">
+    Publishing to <a href={studio.siteUrl} target="_blank" rel="noopener noreferrer">{studio.siteName}</a>. Remote deployment is not
+    configured.
+  </p>
+  <script>
+    if (document.querySelector('.badge.draft')) setTimeout(() => location.reload(), 4000);
+  </script>
+</Dashboard>
+

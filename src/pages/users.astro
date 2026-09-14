@@ -1,0 +1,141 @@
+---
+import Dashboard from '../layouts/Dashboard.astro';
+import { db } from '../lib/db.mjs';
+import type { Member } from '../lib/types';
+if (Astro.locals.account?.role !== 'admin') return Astro.redirect('/');
+const users = db
+  .prepare(
+    'SELECT u.id,u.name,u.email,m.role,m.status FROM user u JOIN members m ON m.user_id=u.id ORDER BY u.name',
+  )
+  .all() as unknown as Member[];
+const activeAdmins = users.filter(
+  (user) => user.role === 'admin' && user.status === 'active',
+).length;
+const lastAdmin = (user: Member) =>
+  user.role === 'admin' && user.status === 'active' && activeAdmins === 1;
+---
+
+<Dashboard title="Users" active="users">
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">BETTER TOGETHER</p>
+      <h1>Your publishing team.</h1>
+      <p>Give people access to the work they need to do.</p>
+    </div>
+    <button class="button primary" data-invite-open>
+      ＋ Invite user
+    </button>
+  </div>
+  <section class="panel">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Manage</th>
+          </tr>
+        </thead>
+        <tbody>
+          {users.map((user) => (
+            <tr>
+              <td>
+                <strong>{user.name}</strong>
+                <small>{user.email}</small>
+              </td>
+              <td>{user.role}</td>
+              <td>
+                <span class:list={['badge', user.status === 'active' ? 'published' : 'draft']}>
+                  {user.status}
+                </span>
+              </td>
+              <td>
+                <div class="actions">
+                  {user.status !== 'disabled' && (
+                    <button class="text-button" data-reset-user={user.id}>
+                      Setup / reset link
+                    </button>
+                  )}
+                  {user.status !== 'invited' && (
+                    <button
+                      class="text-button"
+                      data-toggle-user={user.id}
+                      data-next-status={user.status === 'disabled' ? 'active' : 'disabled'}
+                      disabled={lastAdmin(user)}
+                      title={
+                        lastAdmin(user) ? 'Add another active administrator first.' : undefined
+                      }
+                    >
+                      {user.status === 'disabled' ? 'Activate' : 'Deactivate'}
+                    </button>
+                  )}
+                  <button
+                    class="text-button"
+                    data-role-user={user.id}
+                    data-next-role={user.role === 'admin' ? 'editor' : 'admin'}
+                    disabled={lastAdmin(user)}
+                    title={lastAdmin(user) ? 'Add another active administrator first.' : undefined}
+                  >
+                    Make {user.role === 'admin' ? 'editor' : 'admin'}
+                  </button>
+                </div>
+                {lastAdmin(user) && (
+                  <small>
+                    Last active admin — add another active admin before changing this role or
+                    deactivating it.
+                  </small>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  <p class="helper">
+    Deactivating a user ends their sessions. Their articles and author names stay intact.
+  </p>
+  <dialog id="invite-dialog">
+    <form id="invite-form">
+      <h2>Invite someone to write.</h2>
+      <label class="field">
+        Full name
+        <input name="name" required maxlength="100" />
+      </label>
+      <label class="field">
+        Email
+        <input name="email" type="email" required />
+      </label>
+      <label class="field">
+        Role
+        <select name="role">
+          <option value="editor">Editor — manage and publish posts</option>
+          <option value="admin">Admin — posts and user management</option>
+        </select>
+      </label>
+      <p class="helper">You’ll get a private setup link to share. No email is sent.</p>
+      <div class="actions">
+        <button class="button" type="button" data-dialog-close>
+          Cancel
+        </button>
+        <button class="button primary">Create invitation</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="link-dialog">
+    <h2>Your private setup link</h2>
+    <p>Share this directly with the user. It expires in one hour.</p>
+    <label class="field">
+      Single-use link<textarea id="setup-link" readonly rows="4"></textarea>
+    </label>
+    <div class="actions">
+      <button class="button" data-dialog-close>
+        Close
+      </button>
+      <button class="button primary" data-copy-link>
+        Copy link
+      </button>
+    </div>
+  </dialog>
+</Dashboard>

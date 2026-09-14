@@ -1,0 +1,141 @@
+---
+import Dashboard from '../layouts/Dashboard.astro';
+import { db, postCategories } from '../lib/db.mjs';
+import { listCategories } from '../lib/categories.mjs';
+const categories = listCategories();
+import type { Post } from '../lib/types';
+const posts = db.prepare('SELECT * FROM posts ORDER BY updated_at DESC').all() as unknown as Post[];
+const live = posts.filter((p) => p.published_version).length;
+---
+
+<Dashboard>
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">YOUR CONTENT</p>
+      <h1>A home for your stories.</h1>
+      <p>Create something useful. Share it when you’re ready.</p>
+    </div>
+    <a class="button primary" href="/posts/new">
+      ＋ New post
+    </a>
+  </div>
+  <div class="stats">
+    <div>
+      <span>All posts</span>
+      <strong>{posts.length.toString().padStart(2, '0')}</strong>
+    </div>
+    <div>
+      <span>Published</span>
+      <strong>{live.toString().padStart(2, '0')}</strong>
+    </div>
+    <div>
+      <span>Drafts</span>
+      <strong>{(posts.length - live).toString().padStart(2, '0')}</strong>
+    </div>
+  </div>
+  <section class="panel">
+    <div class="panel-tools">
+      <div class="tabs" aria-label="Filter posts">
+        <button class="selected" data-filter="all">
+          All posts
+        </button>
+        <button data-filter="draft">Drafts</button>
+        <button data-filter="published">Published</button>
+      </div>
+      <label class="search-label">
+        <span class="sr-only">Search posts</span>
+        <input type="search" placeholder="Search posts…" data-post-search />
+      </label>
+      <label class="field post-category-filter">
+        Category
+        <select data-post-category>
+          <option value="">All categories</option>
+          {categories.map((c) => (
+            <option>{c.name}</option>
+          ))}
+        </select>
+      </label>
+    </div>
+    {posts.length === 0 ? (
+      <div class="empty">
+        <div class="empty-art">✎</div>
+        <h2>Your next story starts here.</h2>
+        <p>
+          Write a draft, add an image and preview your post.
+          <br />
+          Nothing goes live until you publish.
+        </p>
+        <a class="button primary" href="/posts/new">
+          Create your first post ↗
+        </a>
+      </div>
+    ) : (
+      <>
+        <div class="bulk-tools">
+          <label>
+            <input type="checkbox" data-select-posts /> Select visible posts
+          </label>
+          <span data-selection-count>0 selected</span>
+          <select aria-label="Bulk action" data-bulk-action>
+            <option value="publish">Publish</option>
+            <option value="unpublish">Unpublish</option>
+            <option value="delete">Delete drafts</option>
+          </select>
+          <button class="button" data-bulk-apply disabled>
+            Apply
+          </button>
+        </div>
+        <div class="post-list">
+          {posts.map((post) => (
+            <article
+              class="post-row"
+              data-post-row
+              data-status={post.published_version ? 'published' : 'draft'}
+              data-title={post.title}
+              data-categories={JSON.stringify(postCategories(post))}
+            >
+              <input
+                type="checkbox"
+                data-post-select
+                value={post.id}
+                aria-label={'Select ' + post.title}
+              />
+              <a class="post-thumb" href={'/posts/' + post.id}>
+                {post.image ? <img src={'/media/' + post.image} alt="" /> : <span>✎</span>}
+              </a>
+              <div>
+                <span class:list={['badge', post.published_version ? 'published' : 'draft']}>
+                  {post.published_version
+                    ? post.published_version === post.version
+                      ? 'Published'
+                      : 'Unpublished changes'
+                    : 'Draft'}
+                </span>
+                <h2>
+                  <a href={'/posts/' + post.id}>{post.title}</a>
+                </h2>
+                <p>
+                  {postCategories(post).join(', ')} <span>·</span> {post.author}
+                </p>
+              </div>
+              <div class="row-meta">
+                <time datetime={post.updated_at}>
+                  Updated{' '}
+                  {new Date(post.updated_at).toLocaleDateString('en', {
+                    month: 'short',
+                    day: 'numeric',
+                  })}
+                </time>
+                <a href={'/posts/' + post.id}>Edit post ↗</a>
+              </div>
+            </article>
+          ))}
+        </div>
+      </>
+    )}
+    <p class="no-matches" hidden data-no-matches>
+      No posts match your search.
+    </p>
+  </section>
+</Dashboard>
+<script src="../scripts/posts.ts"></script>

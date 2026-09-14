@@ -1,0 +1,36 @@
+---
+import Dashboard from '../layouts/Dashboard.astro';
+---
+
+<Dashboard title="Account">
+  <div class="page-heading">
+    <div>
+      <p class="eyebrow">YOUR ACCOUNT</p>
+      <h1>A little housekeeping.</h1>
+      <p>{Astro.locals.account?.user.email}</p>
+    </div>
+  </div>
+  <form class="panel settings-panel narrow" id="change-password-form">
+    <h2>Change password</h2>
+    <label class="field">
+      Current password
+      <input type="password" name="currentPassword" required autocomplete="current-password" />
+    </label>
+    <label class="field">
+      New password
+      <input
+        type="password"
+        name="newPassword"
+        required
+        minlength="12"
+        maxlength="128"
+        autocomplete="new-password"
+      />
+    </label>
+    <button class="button primary">Update password</button>
+    <p class="helper">Other signed-in sessions will end.</p>
+  </form>
+  <button class="text-button" data-signout>
+    Sign out of this device ↗
+  </button>
+</Dashboard>

@@ -1,0 +1,53 @@
+---
+import '../styles/studio.css';
+if (Astro.locals.account) return Astro.redirect('/');
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Sign in · Blog Studio</title>
+  </head>
+  <body class="auth-page">
+    <main class="auth-card">
+      <a class="brand" href="/login">
+        <span class="brand-icon">b.</span> Blog Studio
+      </a>
+      <p class="eyebrow">WELCOME BACK</p>
+      <h1>
+        Your stories
+        <br />
+        start here.
+      </h1>
+      <p>Sign in to your publishing workspace.</p>
+      <form id="login-form">
+        <label class="field">
+          Email
+          <input type="email" name="email" required autocomplete="username" />
+        </label>
+        <label class="field">
+          Password
+          <input
+            type="password"
+            name="password"
+            minlength="12"
+            required
+            autocomplete="current-password"
+          />
+        </label>
+        <button class="button primary" type="submit">
+          Sign in →
+        </button>
+        <p role="alert" id="auth-status"></p>
+      </form>
+      <p class="auth-note">
+        Need access or a password reset?
+        <br />
+        Ask your workspace administrator for a setup link.
+      </p>
+    </main>
+    <script src="../scripts/auth.ts"></script>
+  </body>
+</html>
