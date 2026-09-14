@@ -1,0 +1,18 @@
+<dialog id="app-dialog" aria-labelledby="app-dialog-title" aria-describedby="app-dialog-message">
+  <form method="dialog">
+    <h2 id="app-dialog-title"></h2>
+    <p id="app-dialog-message"></p>
+    <label class="field" id="app-dialog-field" hidden>
+      <span id="app-dialog-label"></span>
+      <input id="app-dialog-input" maxlength="240" />
+    </label>
+    <div class="actions">
+      <button type="button" class="button" data-app-cancel>
+        Cancel
+      </button>
+      <button class="button primary" value="accept" id="app-dialog-accept">
+        Continue
+      </button>
+    </div>
+  </form>
+</dialog>

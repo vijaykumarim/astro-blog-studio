@@ -1,0 +1,256 @@
+---
+const {
+  post,
+  html,
+  siteName = 'The Journal',
+  siteUrl = 'http://127.0.0.1:4331',
+  preview = false,
+} = Astro.props;
+const title = post.seo_title || post.title,
+  description = post.seo_description || post.excerpt;
+const canonical = new URL('/blog/' + post.slug + '/', siteUrl).href;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>{title} · {siteName}</title>
+    <meta name="description" content={description} />
+    <meta name="robots" content="noindex,nofollow" />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="article" />
+    <meta property="og:image" content={new URL('/media/' + post.image, siteUrl).href} />
+    <script
+      is:inline
+      type="application/ld+json"
+      set:html={JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'BlogPosting',
+        headline: post.title,
+        description,
+        image: new URL('/media/' + post.image, siteUrl).href,
+        author: { '@type': 'Person', name: post.author },
+        datePublished: post.created_at,
+        dateModified: post.updated_at,
+        mainEntityOfPage: canonical,
+      }).replace(/</g, '\u003c')}
+    ></script>
+  </head>
+  <body>
+    {preview && (
+      <aside class="preview-banner">
+        Private draft preview <a href={'/posts/' + post.id}>Return to editor ↗</a>
+      </aside>
+    )}
+    <header>
+      <a href="/blog/">
+        {siteName}
+        <span>Thoughts worth sharing.</span>
+      </a>
+      <a href="/blog/">All articles ↗</a>
+    </header>
+    <main>
+      <article>
+        <div class="article-heading">
+          <p class="category">
+            {(post.categories || [post.category]).map((name: string, index: number) => (
+              <>
+                {index > 0 && ' · '}
+                {preview ? (
+                  name
+                ) : (
+                  <a
+                    href={
+                      '/blog/category/' +
+                      (post.categoryLinks?.find((c: { name: string }) => c.name === name)?.slug ??
+                        (name
+                          .normalize('NFKD')
+                          .toLowerCase()
+                          .replace(/[^a-z0-9]+/g, '-')
+                          .replace(/^-|-$/g, '') ||
+                          'category')) +
+                      '/'
+                    }
+                  >
+                    {name}
+                  </a>
+                )}
+              </>
+            ))}
+          </p>
+          <h1>{post.title}</h1>
+          <p class="excerpt">{post.excerpt}</p>
+          <p class="byline">
+            By {post.author} <span>·</span>{' '}
+            {new Date(post.created_at).toLocaleDateString('en', {
+              month: 'long',
+              day: 'numeric',
+              year: 'numeric',
+            })}
+          </p>
+        </div>
+        {post.image && (
+          <figure>
+            <img src={'/media/' + post.image} alt={post.alt} width="1600" height="1000" />
+          </figure>
+        )}
+        <div class="prose" set:html={html} />
+      </article>
+      <a class="back" href="/blog/">
+        ← Back to all articles
+      </a>
+    </main>
+    <footer>{siteName} · Powered by Astro and Blog Studio</footer>
+  </body>
+</html>
+<style is:global>
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    background: #fafbf7;
+    color: #24372d;
+    font-family: system-ui, sans-serif;
+  }
+  a {
+    color: inherit;
+  }
+  header {
+    max-width: 1100px;
+    margin: auto;
+    padding: 30px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #dfe5da;
+  }
+  header a {
+    text-decoration: none;
+    font-weight: 650;
+  }
+  header a:first-child {
+    font-family: Georgia, serif;
+    font-size: 28px;
+  }
+  header span {
+    display: block;
+    font: 11px system-ui;
+    margin-top: 7px;
+    color: #657066;
+  }
+  header a:last-child {
+    font-size: 13px;
+  }
+  main {
+    max-width: 1040px;
+    padding: 55px 24px;
+    margin: auto;
+  }
+  .article-heading {
+    max-width: 780px;
+    margin: 0 auto 35px;
+    text-align: center;
+  }
+  .category {
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: #437b5c;
+  }
+  h1 {
+    font:
+      clamp(36px, 5vw, 62px)/1.12 Georgia,
+      serif;
+    letter-spacing: -1.5px;
+    margin: 20px 0;
+  }
+  .excerpt {
+    font-size: 19px;
+    line-height: 1.7;
+    color: #657166;
+  }
+  .byline {
+    font-size: 12px;
+    margin-top: 25px;
+  }
+  .byline span {
+    margin: 0 10px;
+  }
+  figure {
+    margin: 0 0 45px;
+  }
+  figure img {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 560px;
+    object-fit: cover;
+    border-radius: 14px;
+  }
+  .prose {
+    max-width: 700px;
+    margin: auto;
+    font-size: 17px;
+    line-height: 1.9;
+  }
+  .prose img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 10px;
+  }
+  .prose h2 {
+    font: 32px/1.25 Georgia;
+    margin-top: 40px;
+  }
+  .prose h3 {
+    font-size: 22px;
+    margin-top: 30px;
+  }
+  .prose blockquote {
+    border-left: 3px solid #588966;
+    padding-left: 22px;
+    margin-left: 0;
+  }
+  .prose a {
+    color: #216753;
+  }
+  .prose pre {
+    white-space: pre-wrap;
+    background: #eef3ec;
+    padding: 20px;
+  }
+  .back {
+    display: block;
+    max-width: 700px;
+    margin: 50px auto 0;
+    font-size: 14px;
+  }
+  footer {
+    text-align: center;
+    padding: 30px;
+    border-top: 1px solid #dfe5da;
+    color: #657166;
+    font-size: 12px;
+  }
+  .preview-banner {
+    background: #216753;
+    color: white;
+    padding: 14px 24px;
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    font-size: 13px;
+  }
+  .preview-banner a {
+    color: white;
+  }
+  a:focus-visible {
+    outline: 3px solid #438b62;
+    outline-offset: 4px;
+  }
+</style>
