@@ -1,3 +1,5 @@
+import { importRemoteImage } from '../../lib/remote-images.mjs';
+import { deleteMedia } from '../../lib/media.mjs';
 import { inspectImport, runImport } from '../../lib/imports.mjs';
 import {
   listRedirects,
@@ -10,7 +12,7 @@ import type { APIRoute } from 'astro';
 import { db, audit, postCategories } from '../../lib/db.mjs';
 import { getPost, savePost, deletePost, Conflict, deletePosts } from '../../lib/content.mjs';
 import { invite, changeMember, resetLink } from '../../lib/auth.mjs';
-import { queuePublish } from '../../lib/publish.mjs';
+import { queuePublish, PublishValidation } from '../../lib/publish.mjs';
 import {
   listCategories,
   createCategory,
@@ -90,6 +92,8 @@ export const ALL: APIRoute = async ({ request, params, locals }) => {
     }
     if (!['POST', 'PATCH', 'DELETE'].includes(method))
       return new Response('Not found', { status: 404 });
+    const mediaMatch = route.match(/^media\/([a-f0-9-]{36})$/);
+    if (mediaMatch && method === 'DELETE') return Response.json(deleteMedia(mediaMatch[1], actor));
     if (route === 'media' && method === 'POST') {
       const bounded = await limitedRequest(
         request,
@@ -109,6 +113,11 @@ export const ALL: APIRoute = async ({ request, params, locals }) => {
       route.startsWith('imports') ? 10 * 1024 * 1024 : 1024 * 1024,
     );
     const body = await bounded.json();
+    if (route === 'imports/images' && method === 'POST') {
+      const result = await importRemoteImage(body.url);
+      audit(actor, 'image-imported', result.filename);
+      return Response.json(result);
+    }
     if (route === 'imports/preview' && method === 'POST')
       return Response.json({ rows: inspectImport(body) });
     if (route === 'imports' && method === 'POST') return Response.json(runImport(body, actor));
@@ -130,10 +139,9 @@ export const ALL: APIRoute = async ({ request, params, locals }) => {
       if (
         !Array.isArray(body.ids) ||
         !body.ids.length ||
-        body.ids.length > 100 ||
         body.ids.some((id: unknown) => typeof id !== 'string' || !/^[a-f0-9-]{36}$/.test(id))
       )
-        throw new Error('Select 1–100 posts.');
+        throw new Error('Select at least one post.');
       if (body.action === 'delete') {
         deletePosts(body.ids, actor);
         return Response.json({ ok: true });
@@ -199,6 +207,7 @@ export const ALL: APIRoute = async ({ request, params, locals }) => {
     const err = error as Error;
     return Response.json(
       {
+        ...(error instanceof PublishValidation ? { issues: error.issues } : {}),
         error:
           err.name === 'ZodError' ? 'Check all required fields and the URL format.' : err.message,
       },
