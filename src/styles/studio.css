@@ -1223,3 +1223,68 @@ td .actions {
     text-align: center;
   }
 }
+
+.migration-panel {
+  padding: 28px;
+  margin-bottom: 24px;
+}
+.migration-panel h2 {
+  font-size: 23px;
+  margin: 0 0 14px;
+}
+.migration-panel h2:not(:first-child) {
+  margin-top: 28px;
+}
+.migration-panel label {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0;
+}
+.migration-panel input:not([type='checkbox']),
+.migration-panel select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+}
+.migration-panel .migration-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.migration-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+  overflow-wrap: anywhere;
+}
+.migration-row p {
+  margin: 6px 0;
+}
+.migration-exports {
+  flex-wrap: wrap;
+}
+.migration-rows {
+  margin-bottom: 24px;
+}
+#migration-error {
+  color: #9c2337;
+}
+.sidebar {
+  overflow-y: auto;
+}
+@media (max-width: 760px) {
+  .migration-panel {
+    padding: 20px;
+  }
+  .migration-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+.migration-form button + button { margin-left: 8px; }
