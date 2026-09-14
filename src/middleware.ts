@@ -10,7 +10,7 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
     started = true;
   }
   const p = ctx.url.pathname;
-  const publicRoute = p === '/login' || p === '/set-password' || p.startsWith('/api/auth/');
+  const publicRoute = p === '/favicon.svg' || p === '/login' || p === '/set-password' || p.startsWith('/api/auth/');
   if (
     !['GET', 'HEAD', 'OPTIONS'].includes(ctx.request.method) &&
     ctx.request.headers.get('origin') !== origin
