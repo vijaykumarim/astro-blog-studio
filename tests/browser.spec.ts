@@ -277,6 +277,24 @@ test('editor, publish, access boundaries, images and responsive dashboard', asyn
       .evaluate((el) => el.getBoundingClientRect().width),
   ).toBeLessThan(230);
   await page.screenshot({ path: 'test-results/media-compact.png' });
+  const imageButton=page.locator('[data-media-details]').first();
+  await expect(page.locator('.media-grid figcaption').first()).toContainText('px');
+  await imageButton.click();
+  await expect(page.getByRole('dialog',{name:'Image details'})).toBeVisible();
+  await expect(page.locator('[data-detail="dimensions"]')).toContainText('×');
+  await expect(page.locator('#media-url')).toHaveValue(/http:\/\/127\.0\.0\.1:4340\/media\//);
+  await expect.poll(async()=>Math.round(await page.locator('#media-details').evaluate(el=>el.getBoundingClientRect().right))).toBe(1440);
+  await page.screenshot({path:'test-results/media-drawer-desktop.png',fullPage:true});
+  await page.keyboard.press('Escape');
+  await expect(imageButton).toBeFocused();
+  await page.setViewportSize({width:390,height:844});
+  await imageButton.click();
+  expect(await page.locator('#media-details').evaluate(el=>el.getBoundingClientRect().width)).toBeLessThanOrEqual(390);
+  await expect.poll(async()=>Math.round(await page.locator('#media-details').evaluate(el=>el.getBoundingClientRect().left))).toBe(0);
+  await page.screenshot({path:'test-results/media-drawer-mobile.png',fullPage:true});
+  await page.getByRole('button',{name:'Close image details',exact:true}).click();
+  await page.setViewportSize({width:1440,height:1000});
+
   expect(
     await page
       .locator('.media-grid img')
