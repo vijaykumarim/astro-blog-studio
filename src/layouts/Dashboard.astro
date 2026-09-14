@@ -1,0 +1,111 @@
+---
+import { studio } from '../lib/config.mjs';
+import '../styles/studio.css';
+import AppDialog from '../components/AppDialog.astro';
+const { title = 'Posts', active = 'posts' } = Astro.props;
+const account = Astro.locals.account;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>{title} · {studio.name}</title>
+  </head>
+  <body>
+    <a class="skip" href="#main">
+      Skip to content
+    </a>
+    <aside class="sidebar">
+      <a class="brand" href="/">
+        <span class="brand-icon">b.</span>
+        <span>
+          {studio.name}
+          <small>YOUR WORDS. YOUR WEBSITE.</small>
+        </span>
+      </a>
+      <button
+        class="button mobile-menu-toggle"
+        type="button"
+        aria-expanded="false"
+        aria-controls="dashboard-nav"
+      >
+        Menu ☰
+      </button>
+      <nav aria-label="Dashboard" id="dashboard-nav">
+        <a href="/" aria-current={active === 'posts' ? 'page' : undefined}>
+          <span>▤</span> Posts
+        </a>
+        <a href="/media" aria-current={active === 'media' ? 'page' : undefined}>
+          <span>▧</span> Media library
+        </a>
+        <a href="/categories" aria-current={active === 'categories' ? 'page' : undefined}>
+          <span>▱</span> Categories
+        </a>
+        <a href="/publishing" aria-current={active === 'publishing' ? 'page' : undefined}>
+          <span>↗</span> Publishing
+        </a>
+        {account?.role === 'admin' && (
+          <a href="/settings" aria-current={active === 'settings' ? 'page' : undefined}>
+            <span>⚙</span> Settings
+          </a>
+        )}
+        {account?.role === 'admin' && (
+          <a href="/users" aria-current={active === 'users' ? 'page' : undefined}>
+            <span>♧</span> Users
+          </a>
+        )}
+        <a class="mobile-account" href="/account">
+          Account
+        </a>
+      </nav>
+      <div class="sidebar-bottom">
+        <p>
+          Built for Astro.
+          <br />
+          Made for your team.
+        </p>
+        <div class="account">
+          <span class="avatar">{account?.user.name.slice(0, 1).toUpperCase()}</span>
+          <span>
+            {account?.user.name}
+            <small>{account?.role}</small>
+          </span>
+        </div>
+        <a href="/account">Account settings</a>
+        <button class="text-button" data-signout>
+          Sign out ↗
+        </button>
+      </div>
+    </aside>
+    <div class="workspace">
+      <header class="topbar">
+        <span>
+          <strong>{studio.siteName}</strong> <span class="slash">/</span> {title}
+        </span>
+        <a href={studio.siteUrl} target="_blank" rel="noreferrer">
+          View website ↗
+        </a>
+      </header>
+      <main id="main">
+        <slot />
+      </main>
+      <footer class="workspace-footer">
+        Blog Studio <span>Open-source publishing, on your terms.</span>
+      </footer>
+    </div>
+    <div class="toast" id="toast" role="status" hidden></div>
+    <AppDialog />
+    <script src="../scripts/dashboard.ts"></script>
+    <script>
+      const toggle = document.querySelector<HTMLButtonElement>('.mobile-menu-toggle');
+      toggle?.addEventListener('click', () => {
+        const open = toggle.getAttribute('aria-expanded') !== 'true';
+        toggle.setAttribute('aria-expanded', String(open));
+        document.querySelector('.sidebar')?.classList.toggle('nav-open', open);
+      });
+    </script>
+  </body>
+</html>
