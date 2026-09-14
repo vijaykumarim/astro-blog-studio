@@ -1,0 +1,69 @@
+---
+import { getCollection } from 'astro:content';
+import { categoriesFor } from '../../../lib/categories';
+export async function getStaticPaths() {
+  const all = await getCollection('posts');
+  return [
+    ...new Map(all.flatMap((p) => categoriesFor(p.data)).map((c) => [c.slug, c])).values(),
+  ].map((category) => ({
+    params: { category: category.slug },
+    props: {
+      category,
+      posts: all.filter((p) => categoriesFor(p.data).some((c) => c.slug === category.slug)),
+    },
+  }));
+}
+const { category, posts } = Astro.props;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>{category.name} · The Journal</title>
+  </head>
+  <body>
+    <main>
+      <a href="/blog/">← All articles</a>
+      <h1>{category.name}</h1>
+      {posts.map(({ data: p }) => (
+        <article>
+          <a href={'/blog/' + p.slug + '/'}>
+            <img src={'/media/' + p.image} alt={p.alt} />
+            <h2>{p.title}</h2>
+          </a>
+          <p>{p.excerpt}</p>
+        </article>
+      ))}
+    </main>
+  </body>
+</html>
+<style>
+  body {
+    font: 16px/1.7 system-ui;
+    color: #24372d;
+    background: #fafbf7;
+    margin: 0;
+  }
+  main {
+    max-width: 900px;
+    margin: auto;
+    padding: 40px 24px;
+  }
+  a {
+    color: inherit;
+  }
+  article {
+    border-bottom: 1px solid #ddd;
+    padding: 24px 0;
+  }
+  img {
+    width: 280px;
+    max-width: 100%;
+    border-radius: 12px;
+  }
+  h1 {
+    font: 48px Georgia;
+  }
+</style>
