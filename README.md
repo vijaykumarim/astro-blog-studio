@@ -132,9 +132,13 @@ Tests use isolated data, not your working blog. GitHub Actions runs the checks o
 
 ## Import an existing blog
 
-Administrators can import WordPress XML or JSON, match images from a local uploads folder, review warnings and create drafts. ABS skips previously imported source URLs and can create old-to-new 301 mappings. The Redirects screen exports JSON, Nginx, Apache and Netlify rules for the website host.
+Administrators can import WordPress XML or JSON, download referenced images from the original website (including XML from Export media with selected content), or match a local uploads folder, review warnings and create drafts. ABS skips previously imported source URLs and can create old-to-new 301 mappings. The Redirects screen exports JSON, Nginx, Apache and Netlify rules for the website host.
 
 [Import and redirect guide →](docs/migration.md)
+
+## Media library
+
+Click an image for its dimensions, file size, URL and **Delete image** action. Deletion uses an in-app confirmation and is blocked while the image is referenced by a draft or published post, or a build is running.
 
 ## Current limits
 

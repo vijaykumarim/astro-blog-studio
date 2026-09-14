@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Download WordPress XML images directly, preserve attachment descriptions and fill empty excerpts from article text.
+- Publish large selections in one build with a persistent list of validation errors.
+- Media details drawer with dimensions, file size, URL and protected deletion using an app confirmation.
+- Protect draft/published image references and release Windows metadata file handles before deletion.
+
 - Admin-only WordPress XML/JSON draft imports, local media matching, original dates, duplicate detection and per-post review reports.
 - Redirect manager with validation and JSON/Nginx/Apache/Netlify exports. Unpublished blog destinations are withheld.
 
