@@ -19,6 +19,7 @@ type ImportPost = {
 };
 const fileInput = document.querySelector<HTMLInputElement>('#import-file')!;
 const mediaInput = document.querySelector<HTMLInputElement>('#import-media')!;
+const download = document.querySelector<HTMLInputElement>('#import-download')!;
 const preview = document.querySelector<HTMLButtonElement>('#import-preview')!;
 const run = document.querySelector<HTMLButtonElement>('#import-run')!;
 const progress = document.querySelector<HTMLElement>('#import-progress')!;
@@ -59,7 +60,13 @@ function parseExport(source: string): ImportPost[] {
   const attachments = new Map(
     items
       .filter((i) => text(i, 'post_type') === 'attachment')
-      .map((i) => [text(i, 'post_id'), text(i, 'attachment_url')]),
+      .map((i) => {
+        const alt = Array.from(i.getElementsByTagNameNS('*', 'postmeta'))
+          .find(m => text(m, 'meta_key') === '_wp_attachment_image_alt');
+        return [text(i, 'post_id'), {url: text(i, 'attachment_url'),
+          alt: plain(alt ? text(alt, 'meta_value') : '').slice(0,240),
+          title: plain(text(i, 'title')).slice(0,240)}] as const;
+      }),
   );
   return items
     .filter(
@@ -98,7 +105,9 @@ function parseExport(source: string): ImportPost[] {
           .slice(0, 10),
         author: text(i, 'creator') || 'Editorial team',
         ...(date && !date.startsWith('0000') ? { date: date.replace(' ', 'T') + 'Z' } : {}),
-        featuredUrl: attachments.get(meta.get('_thumbnail_id') || '') || '',
+        featuredUrl: attachments.get(meta.get('_thumbnail_id') || '')?.url || '',
+        alt: attachments.get(meta.get('_thumbnail_id') || '')?.alt ||
+          attachments.get(meta.get('_thumbnail_id') || '')?.title || '',
         seo_title: meta.get('_yoast_wpseo_title') || meta.get('rank_math_title') || '',
         seo_description:
           meta.get('_yoast_wpseo_metadesc') || meta.get('rank_math_description') || '',
@@ -112,6 +121,7 @@ function reset() {
 }
 fileInput.addEventListener('change', reset);
 mediaInput.addEventListener('change', reset);
+download.addEventListener('change', reset);
 function report(rows: any[]) {
   const list = document.querySelector('#import-rows')!;
   list.replaceChildren();
@@ -141,6 +151,7 @@ preview.addEventListener('click', async () => {
   preview.disabled = true;
   fileInput.disabled = true;
   mediaInput.disabled = true;
+  download.disabled = true;
   try {
     const file = fileInput.files?.[0];
     if (!file) throw Error('Choose an XML or JSON export.');
@@ -159,8 +170,11 @@ preview.addEventListener('click', async () => {
     );
     const files = Array.from(mediaInput.files || []);
     const uploaded = new Map<string, string>();
+    const failures = new Map<string,string>();
     async function imageFor(url: string) {
       if (!url) return '';
+      if (uploaded.has(url)) return uploaded.get(url)!;
+      if (failures.has(url)) return ''; 
       let pathname: string;
       try {
         pathname = decodeURIComponent(new URL(url).pathname);
@@ -173,7 +187,19 @@ preview.addEventListener('click', async () => {
       const candidates = exact.length
         ? exact
         : files.filter((f) => f.name === pathname.split('/').at(-1));
-      if (candidates.length !== 1) return '';
+      if (candidates.length !== 1) {
+        if (!download.checked) return '';
+        progress.textContent = `Attempting download ${uploaded.size + failures.size + 1}: ${pathname.split('/').at(-1)}`;
+        try {
+          const result = await api('imports/images', 'POST', {url});
+          if (typeof result.filename !== 'string' || !/^[a-f0-9-]{36}\.(webp|avif|jpg|png)$/.test(result.filename)) throw Error('The server did not confirm a saved image.');
+          uploaded.set(url, result.filename);
+          return result.filename;
+        } catch (e) {
+          failures.set(url, (e as Error).message);
+          return '';
+        }
+      }
       const image = candidates[0],
         key = image.webkitRelativePath || image.name;
       if (uploaded.has(key)) return uploaded.get(key)!;
@@ -190,10 +216,13 @@ preview.addEventListener('click', async () => {
       if (!ready.has(index)) continue;
       p.categories = p.categories?.length ? p.categories : ['Imported'];
       p.warnings = p.warnings || [];
-      if (p.featuredUrl) p.image = await imageFor(p.featuredUrl);
+      if (p.featuredUrl) {
+        p.image = await imageFor(p.featuredUrl);
+        if (!p.image) p.warnings.push('Missing featured image: ' + p.featuredUrl + '. ' + (failures.get(p.featuredUrl) || 'No matching local file.'));
+      }
       const doc = new DOMParser().parseFromString(p.html, 'text/html');
       for (const img of Array.from(doc.querySelectorAll('img'))) {
-        const source = img.getAttribute('src') || '';
+        const source = img.getAttribute('data-src') || img.getAttribute('src') || '';
         if (source.startsWith('/media/')) continue;
         let resolved = '';
         try {
@@ -203,8 +232,11 @@ preview.addEventListener('click', async () => {
         if (name) {
           img.setAttribute('src', '/media/' + name);
           img.removeAttribute('srcset');
+          img.removeAttribute('data-src');
+          img.removeAttribute('data-srcset');
+          img.closest('picture')?.querySelectorAll('source').forEach(el => el.remove());
         } else {
-          p.warnings.push('Missing inline image: ' + source.slice(0, 200));
+          p.warnings.push('Missing inline image: ' + source.slice(0, 200) + '. ' + (failures.get(resolved) || 'No matching local file.'));
           img.remove();
         }
       }
@@ -214,7 +246,7 @@ preview.addEventListener('click', async () => {
     report(result.rows);
     run.disabled = !result.rows.some((r: any) => r.status === 'ready');
     document.querySelector<HTMLElement>('#import-review')!.hidden = false;
-    progress.textContent = `${result.rows.filter((r: any) => r.status === 'ready').length} ready to import. ${uploaded.size} images uploaded.`;
+    progress.textContent = `${result.rows.filter((r: any) => r.status === 'ready').length} ready to import. ${uploaded.size} images saved or reused. ${failures.size} downloads failed. To retry, click Preview import again before importing drafts.`;
   } catch (e) {
     error.textContent = (e as Error).message;
     error.hidden = false;
@@ -222,6 +254,7 @@ preview.addEventListener('click', async () => {
     preview.disabled = false;
     fileInput.disabled = false;
     mediaInput.disabled = false;
+    download.disabled = false;
   }
 });
 run.addEventListener('click', async () => {
@@ -238,11 +271,13 @@ run.addEventListener('click', async () => {
   preview.disabled = true;
   fileInput.disabled = true;
   mediaInput.disabled = true;
+  download.disabled = true;
   error.hidden = true;
   try {
     const result = {results:await sendBatches('imports')};
     report(result.results);
-    progress.textContent = `${result.results.filter((r: any) => r.status === 'imported').length} drafts imported. Review them before publishing.`;
+    const missing = result.results.filter((r:any) => r.warnings?.some((w:string) => /Missing .*image|Featured image needs/i.test(w))).length;
+    progress.textContent = `${result.results.filter((r: any) => r.status === 'imported').length} drafts imported. ${missing} posts need image fixes. Review the warnings below before publishing.`;
   } catch (e) {
     error.textContent = (e as Error).message;
     error.hidden = false;
@@ -251,5 +286,6 @@ run.addEventListener('click', async () => {
     preview.disabled = false;
     fileInput.disabled = false;
     mediaInput.disabled = false;
+    download.disabled = false;
   }
 });

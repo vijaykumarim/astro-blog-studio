@@ -41,12 +41,24 @@ apply?.addEventListener('click', async () => {
     }))
   )
     return;
+  document.querySelector('#bulk-errors')?.remove();
   apply.disabled = true;
   try {
     const result = await api('posts/bulk', 'POST', { ids, action });
     location.assign(result.job ? '/publishing' : '/');
   } catch (error) {
-    toast((error as Error).message);
+    const issues = (error as Error & {issues?:{id:string,title:string,fields:string[]}[]}).issues;
+    if (issues?.length) {
+      const panel = document.createElement('section'); panel.id='bulk-errors'; panel.className='panel migration-panel';
+      panel.setAttribute('role','alert'); panel.tabIndex=-1;
+      const heading=document.createElement('h2'); heading.textContent=(error as Error).message; panel.append(heading);
+      for (const issue of issues) {
+        const row=document.createElement('p');
+        const link=document.createElement('a'); link.href='/posts/'+encodeURIComponent(issue.id); link.textContent=issue.title;
+        row.append(link,document.createTextNode(' — '+issue.fields.join(', ')));panel.append(row);
+      }
+      document.querySelector('.bulk-tools')?.after(panel); panel.focus();
+    } else toast((error as Error).message);
     update();
   }
 });

@@ -15,7 +15,7 @@ export async function api(path: string, method = 'POST', body: unknown = {}) {
     body: JSON.stringify(body),
   });
   const result = await response.json();
-  if (!response.ok) throw new Error(result.error ?? 'Something went wrong.');
+  if (!response.ok) throw Object.assign(new Error(result.error ?? 'Something went wrong.'), {issues:result.issues});
   return result;
 }
 const auth = createAuthClient();
