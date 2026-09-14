@@ -1,0 +1,19 @@
+---
+import { getCollection } from 'astro:content';
+import { marked } from 'marked';
+import Article from '../../../../src/components/Article.astro';
+export async function getStaticPaths() {
+  return (await getCollection('posts')).map((post) => ({
+    params: { slug: post.data.slug },
+    props: { post },
+  }));
+}
+const { post } = Astro.props;
+---
+
+<Article
+  post={post.data}
+  html={marked.parse(post.body ?? '')}
+  siteName="The Journal"
+  siteUrl={Astro.site?.href}
+/>
