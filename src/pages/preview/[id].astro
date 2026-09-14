@@ -1,0 +1,9 @@
+---
+import Article from '../../components/Article.astro';
+import { getPost } from '../../lib/content.mjs';
+import { studio } from '../../lib/config.mjs';
+const post = getPost(Astro.params.id);
+if (!post) return Astro.redirect('/');
+---
+
+<Article post={post} html={post.html} siteName={studio.siteName} siteUrl={studio.siteUrl} preview />
