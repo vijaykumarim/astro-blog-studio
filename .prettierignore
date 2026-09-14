@@ -1,0 +1,8 @@
+node_modules
+dist
+storage
+.astro
+test-results
+package-lock.json
+example-site/dist
+example-site/.astro

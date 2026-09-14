@@ -1,0 +1,50 @@
+{
+  "name": "astro-blog-studio",
+  "version": "0.1.0-alpha.1",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24.15.0"
+  },
+  "scripts": {
+    "dev": "node --env-file-if-exists=.env ./node_modules/astro/bin/astro.mjs dev --host 127.0.0.1 --port 4330",
+    "build": "astro build",
+    "start": "node --env-file=.env ./dist/server/entry.mjs",
+    "setup": "node scripts/setup.mjs",
+    "admin": "node --env-file=.env scripts/admin.mjs",
+    "admin:reset": "node --env-file=.env scripts/reset-admin.mjs",
+    "backup": "node --env-file=.env scripts/backup.mjs",
+    "export:source": "node scripts/export-source.mjs",
+    "format": "prettier --write src scripts tests example-site *.mjs *.ts *.json *.md",
+    "test": "node --test tests/*.test.mjs",
+    "preview:site": "node --env-file=.env scripts/serve-release.mjs",
+    "check": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/node": "11.1.5",
+    "@tiptap/core": "^3.0.0",
+    "@tiptap/extension-image": "^3.0.0",
+    "@tiptap/starter-kit": "^3.0.0",
+    "astro": "7.3.2",
+    "better-auth": "1.7.4",
+    "marked": "^17.0.0",
+    "sanitize-html": "^2.17.0",
+    "sharp": "^0.34.0",
+    "turndown": "^7.2.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^24.0.0",
+    "prettier": "^3.9.6",
+    "prettier-plugin-astro": "^1.0.0",
+    "typescript": "^6.0.3"
+  },
+  "description": "Self-hosted blog dashboard for Astro with a visual editor, SQLite and Markdown publishing.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vijaykumarim/astro-blog-studio.git"
+  }
+}
