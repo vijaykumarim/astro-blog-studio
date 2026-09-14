@@ -161,6 +161,7 @@ p {
   margin-right: 9px;
 }
 .sidebar nav {
+  margin-top: 32px;
   display: grid;
   gap: 7px;
 }
@@ -920,6 +921,7 @@ td .actions {
     display: none;
   }
   .sidebar nav {
+    margin-top: 0;
     display: flex;
     gap: 3px;
     overflow-x: auto;
