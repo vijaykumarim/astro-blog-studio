@@ -304,8 +304,27 @@ test('editor, publish, access boundaries, images and responsive dashboard', asyn
   await page.goto('/posts/' + postId);
   expect(nativeDialogs).toEqual([]);
 
+  await page.goto('/media');
+  await page.locator('[data-media-details]').first().click();
+  await page.locator('#media-details [data-media-delete]').click();
+  await page.locator('#app-dialog').getByRole('button',{name:'Delete image',exact:true}).click();
+  await expect(page.locator('[data-media-status]')).toContainText('used by');
+  await page.keyboard.press('Escape');
+  const unusedResponse=await page.request.post('/api/media',{headers:{Origin:'http://127.0.0.1:4340'},multipart:{file:{name:'unused.png',mimeType:'image/png',buffer}}});
+  expect(unusedResponse.ok()).toBeTruthy();
+  const unused=await unusedResponse.json();
+  await page.reload();
+  const unusedButton=page.locator('[data-media-details]').filter({has:page.locator('img[src="/media/'+unused.filename+'"]')});
+  await unusedButton.click();
+  await page.locator('[data-media-delete]').click();
+  await page.locator('#app-dialog').getByRole('button',{name:'Cancel',exact:true}).click();
+  await expect(page.locator('#media-details')).toBeVisible();
+  await page.locator('[data-media-delete]').click();
+  await page.locator('#app-dialog').getByRole('button',{name:'Delete image',exact:true}).click();
+  await expect(page.locator('img[src="/media/'+unused.filename+'"]')).toHaveCount(0);
+  expect(nativeDialogs).toEqual([]);
   await page.goto('/imports');
-  const xml = `<?xml version="1.0"?><rss xmlns:wp="http://wordpress.org/export/1.2/" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><wp:wxr_version>1.2</wp:wxr_version><item><title>Imported browser story</title><link>https://old.example.com/browser-story/</link><wp:post_type>post</wp:post_type><wp:status>publish</wp:status><wp:post_name>browser-import</wp:post_name><wp:post_date_gmt>2021-01-01 12:00:00</wp:post_date_gmt><wp:postmeta><wp:meta_key>_thumbnail_id</wp:meta_key><wp:meta_value>99</wp:meta_value></wp:postmeta><content:encoded><![CDATA[<h2>Imported heading</h2><p>Original imported article content.</p><img src="https://old.example.com/uploads/import-image.png" alt="Imported illustration" />]]></content:encoded></item><item><wp:post_type>attachment</wp:post_type><wp:post_id>99</wp:post_id><wp:attachment_url>https://old.example.com/uploads/import-image.png</wp:attachment_url></item></channel></rss>`;
+  const xml = `<?xml version="1.0"?><rss xmlns:wp="http://wordpress.org/export/1.2/" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel><wp:wxr_version>1.2</wp:wxr_version><item><title>Imported browser story</title><link>https://old.example.com/browser-story/</link><wp:post_type>post</wp:post_type><wp:status>publish</wp:status><wp:post_name>browser-import</wp:post_name><wp:post_date_gmt>2021-01-01 12:00:00</wp:post_date_gmt><wp:postmeta><wp:meta_key>_thumbnail_id</wp:meta_key><wp:meta_value>99</wp:meta_value></wp:postmeta><content:encoded><![CDATA[<h2>Imported heading</h2><p>Original imported article content.</p><img src="https://old.example.com/uploads/import-image.png" alt="Imported illustration" />]]></content:encoded></item><item><wp:post_type>attachment</wp:post_type><wp:post_id>99</wp:post_id><wp:postmeta><wp:meta_key>_wp_attachment_image_alt</wp:meta_key><wp:meta_value>Original WordPress image description</wp:meta_value></wp:postmeta><wp:attachment_url>https://old.example.com/uploads/import-image.png</wp:attachment_url></item></channel></rss>`;
   await page
     .locator('#import-file')
     .setInputFiles({ name: 'wordpress.xml', mimeType: 'text/xml', buffer: Buffer.from(xml) });
@@ -324,11 +343,37 @@ test('editor, publish, access boundaries, images and responsive dashboard', asyn
   const importedPosts = await (await page.request.get('/api/posts')).json();
   const imported = importedPosts.find((p: any) => p.slug === 'browser-import');
   expect(imported.image).toMatch(/\.webp$/);
+  expect(imported.alt).toBe('Original WordPress image description');
+  expect(imported.excerpt).toContain('Original imported article content.');
   const importedDetail = await (await page.request.get('/api/posts/' + imported.id)).json();
   expect(importedDetail.html).toContain('/media/');
   expect(importedDetail.html).not.toContain('old.example.com/uploads');
+  await page.goto('/imports');
+  let remoteCalls = 0;
+  await page.route('**/api/imports/images', async route => {
+    remoteCalls++;
+    expect(route.request().postDataJSON().url).toBe('https://old.example.com/uploads/import-image.png');
+    await route.fulfill({json:{filename:imported.image}});
+  });
+  await page.locator('#import-file').setInputFiles({name:'plugin.xml',mimeType:'text/xml',buffer:Buffer.from(xml.replaceAll('browser-story','remote-story').replaceAll('browser-import','remote-import'))});
+  await page.getByRole('button',{name:'Preview import',exact:true}).click();
+  await expect(page.locator('#import-rows')).toContainText('ready: Imported browser story');
+  expect(remoteCalls).toBe(1);
+  await page.getByRole('button',{name:'Import ready posts as drafts',exact:true}).click();
+  await page.getByRole('button',{name:'Import drafts',exact:true}).click();
+  await expect(page.locator('#import-rows')).toContainText('imported: Imported browser story');
+  await page.unroute('**/api/imports/images');
+  const rejectedImage=await page.request.post('/api/imports/images',{headers:{Origin:'http://127.0.0.1:4340'},data:{url:'http://127.0.0.1/private.png'}});
+  expect(rejectedImage.status()).toBe(400);
+  expect((await rejectedImage.json()).error).toContain('public');
+  const remotePosts = await (await page.request.get('/api/posts')).json();
+  const remote = remotePosts.find((p:any)=>p.slug==='remote-import');
+  expect(remote.image).toBe(imported.image);
+  const remoteDetail=await (await page.request.get('/api/posts/'+remote.id)).json();
+  expect(remoteDetail.html).toContain('/media/'+imported.image);
+  expect(remoteDetail.html).not.toContain('old.example.com/uploads');
   await page.goto('/redirects');
-  await expect(page.locator('.migration-row')).toContainText('/browser-story/');
+  await expect(page.locator('.migration-row').filter({hasText:'/browser-story/'})).toBeVisible();
   await page.getByLabel('Old path').fill('/another-old/');
   await page.getByLabel('New path').fill('/about/');
   await page.getByRole('button', { name: 'Save redirect', exact: true }).click();
@@ -358,6 +403,14 @@ test('editor, publish, access boundaries, images and responsive dashboard', asyn
   await page.getByRole('button',{name:'Import drafts',exact:true}).click();
   await expect(page.locator('#import-progress')).toContainText('251 drafts imported');
   expect(batchSizes).toEqual([250,1]);
+  await page.goto('/');
+  await page.locator('[data-select-posts]').check();
+  await page.locator('[data-bulk-apply]').click();
+  await page.getByRole('button',{name:'Continue',exact:true}).click();
+  await expect(page.locator('#bulk-errors')).toBeVisible();
+  await expect(page.locator('#bulk-errors')).toContainText('Featured image');
+  await expect(page.locator('#bulk-errors a').first()).toHaveAttribute('href',/\/posts\//);
+  await expect(page.locator('#bulk-errors')).not.toContainText('1–100');
   await page.goto('/posts/'+postId);
 
   // An unavailable editor module must leave saved content visible and prevent a blank save.

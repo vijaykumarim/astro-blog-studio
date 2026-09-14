@@ -93,3 +93,14 @@ test('large exports split into sequential bounded batches without dropping rows'
  assert.equal(large.flatMap(b=>b.posts).length,100);
  assert.throws(()=>importBatches([{html:'x'.repeat(9*1024*1024)}]),/request limit/);
 });
+
+
+test('missing excerpts use readable article text while supplied metadata is preserved', async () => {
+  const {importExcerpt}=await import('../src/lib/import-metadata.mjs');
+  assert.equal(importExcerpt('<p>Skin &amp; hair.</p><p>More care.</p><script>bad()</script>'),'Skin & hair. More care.');
+  assert.ok(importExcerpt('<p>'+('A longer article sentence. '.repeat(100))+'</p>').length<=280);
+  const automatic=inspectImport({posts:[{...post,slug:'automatic-excerpt'}]})[0];
+  assert.equal(automatic.post.excerpt,'Original heading Original text');
+  const original=inspectImport({posts:[{...post,excerpt:'Original summary',alt:'Original image description'}]})[0];
+  assert.equal(original.post.excerpt,'Original summary');assert.equal(original.post.alt,'Original image description');
+});
