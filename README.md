@@ -130,6 +130,12 @@ npx playwright test
 
 Tests use isolated data, not your working blog. GitHub Actions runs the checks on pushes and pull requests. [Contribution guide →](CONTRIBUTING.md)
 
+## Import an existing blog
+
+Administrators can import WordPress XML or JSON, match images from a local uploads folder, review warnings and create drafts. ABS skips previously imported source URLs and can create old-to-new 301 mappings. The Redirects screen exports JSON, Nginx, Apache and Netlify rules for the website host.
+
+[Import and redirect guide →](docs/migration.md)
+
 ## Current limits
 
 - One dashboard instance and publishing worker against local SQLite storage.

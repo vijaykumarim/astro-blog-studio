@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Admin-only WordPress XML/JSON draft imports, local media matching, original dates, duplicate detection and per-post review reports.
+- Redirect manager with validation and JSON/Nginx/Apache/Netlify exports. Unpublished blog destinations are withheld.
+
 ## 0.1.0-alpha.1
 
 Initial public source release for local evaluation:
